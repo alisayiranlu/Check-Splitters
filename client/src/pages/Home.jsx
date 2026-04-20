@@ -1,98 +1,106 @@
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useSession } from '../context/SessionContext';
+import { useSession } from '../context/useSession';
+import SideMenu from '../components/SideMenu';
 
 export default function Home() {
   const navigate = useNavigate();
-  const { session, participant } = useSession();
+  const { session, participant, clearSession } = useSession();
+  const [menuOpen, setMenuOpen] = useState(false);
 
   const firstName = participant?.name?.split(' ')[0] ?? 'there';
   const hour = new Date().getHours();
   const greeting = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
 
   return (
-    <div className="page">
-      <div style={{ padding: '24px 16px 0', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-        <div style={{ fontSize: '1.5rem', fontWeight: 700 }}>Check Splitter</div>
-        {participant && (
-          <div className="avatar" style={{ background: participant.avatar_color ?? '#0D9488', width: 40, height: 40, fontSize: '1rem' }}>
+    <div className="page no-nav">
+      <header className="topbar">
+        <button className="icon-btn" type="button" aria-label="Menu" onClick={() => setMenuOpen(true)}>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+            <line x1="4" y1="7" x2="20" y2="7" />
+            <line x1="4" y1="12" x2="20" y2="12" />
+            <line x1="4" y1="17" x2="20" y2="17" />
+          </svg>
+        </button>
+        <span className="brand">Check Splitter</span>
+        {participant ? (
+          <div className="avatar" style={{ width: 32, height: 32, background: participant.avatar_color ?? 'var(--primary)' }}>
             {participant.name?.[0]?.toUpperCase()}
           </div>
+        ) : (
+          <div className="avatar" style={{ width: 32, height: 32 }}>CS</div>
         )}
-      </div>
+      </header>
 
-      <div className="page-content">
-        <div>
+      <main className="page-content">
+        <section style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           <h1>
             {greeting},<br />
-            <span style={{ color: 'var(--primary)' }}>{firstName}.</span>
+            {firstName}.
           </h1>
-          <p style={{ color: 'var(--text-secondary)', marginTop: 6 }}>Ready to settle the score?</p>
-        </div>
+          <p className="muted">Ready to settle the score?</p>
+        </section>
 
         {session && (
-          <div className="card" style={{ display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer' }}
-            onClick={() => navigate(`/session/${session.id}`)}>
-            <div style={{ background: 'var(--primary-light)', borderRadius: 10, padding: 10 }}>
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/>
-              </svg>
+          <button className="card tonal row-between" type="button" onClick={() => navigate(`/session/${session.id}`)} style={{ textAlign: 'left' }}>
+            <div className="list-row">
+              <div className="method-icon">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M12 2 3 6.5 12 11 21 6.5 12 2Z" />
+                  <path d="M3 12 12 16.5 21 12" />
+                  <path d="M3 17.5 12 22 21 17.5" />
+                </svg>
+              </div>
+              <div>
+                <h3>{session.name}</h3>
+                <p className="muted">Invite code {session.code}</p>
+              </div>
             </div>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontWeight: 600 }}>Resume: {session.name}</div>
-              <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Code: {session.code}</div>
-            </div>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--text-secondary)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <polyline points="9 18 15 12 9 6"/>
-            </svg>
-          </div>
+            <span className="btn-ghost">Open</span>
+          </button>
         )}
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          <div className="card" style={{ cursor: 'pointer' }} onClick={() => navigate('/create')}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-              <div style={{ background: 'var(--primary)', borderRadius: '50%', width: 44, height: 44, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round">
-                  <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+        <section className="list-stack">
+          <button className="card row-between" type="button" onClick={() => navigate('/create')} style={{ textAlign: 'left' }}>
+            <div className="list-row">
+              <div className="method-icon" style={{ background: 'var(--primary)', color: '#fff' }}>
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round">
+                  <line x1="12" y1="5" x2="12" y2="19" />
+                  <line x1="5" y1="12" x2="19" y2="12" />
                 </svg>
               </div>
               <div>
                 <h3>Create Session</h3>
-                <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginTop: 2 }}>
-                  Start a new tab for tonight's dinner, a weekend trip, or shared house expenses.
-                </p>
+                <p className="muted">Start a new expense ledger for a shared meal, trip, or house.</p>
               </div>
             </div>
-            <div style={{ marginTop: 12, color: 'var(--primary)', fontSize: '0.875rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4 }}>
-              Start new
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <polyline points="9 18 15 12 9 6"/>
-              </svg>
-            </div>
-          </div>
+          </button>
 
-          <div className="card" style={{ cursor: 'pointer' }} onClick={() => navigate('/join')}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-              <div style={{ background: 'var(--bg)', border: '2px solid var(--border)', borderRadius: '50%', width: 44, height: 44, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/>
+          <button className="card tonal row-between" type="button" onClick={() => navigate('/join')} style={{ textAlign: 'left' }}>
+            <div className="list-row">
+              <div className="method-icon" style={{ background: 'var(--surface-high)', color: 'var(--text)' }}>
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4" />
+                  <polyline points="10 17 15 12 10 7" />
+                  <line x1="15" y1="12" x2="3" y2="12" />
                 </svg>
               </div>
               <div>
                 <h3>Join Session</h3>
-                <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginTop: 2 }}>
-                  Enter an invite code or scan a QR to join an existing tab.
-                </p>
+                <p className="muted">Enter a code or paste a link to join an existing tab.</p>
               </div>
             </div>
-            <div style={{ marginTop: 12, color: 'var(--primary)', fontSize: '0.875rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4 }}>
-              Enter code
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <polyline points="9 18 15 12 9 6"/>
-              </svg>
-            </div>
-          </div>
-        </div>
-      </div>
+          </button>
+        </section>
+      </main>
+
+      <SideMenu
+        open={menuOpen}
+        onClose={() => setMenuOpen(false)}
+        sessionId={session?.id}
+        participant={participant}
+        clearSession={clearSession}
+      />
     </div>
   );
 }

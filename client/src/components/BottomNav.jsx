@@ -1,4 +1,4 @@
-import { NavLink, useParams } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 
 const icons = {
   session: (
@@ -28,27 +28,30 @@ const icons = {
 };
 
 export default function BottomNav({ sessionId }) {
+  const location = useLocation();
   const base = `/session/${sessionId}`;
   const tabs = [
-    { to: base, label: 'Session', icon: icons.session, end: true },
-    { to: `${base}/receipts`, label: 'Receipts', icon: icons.receipts },
-    { to: `${base}/splits`, label: 'Splits', icon: icons.splits },
-    { to: `${base}/review`, label: 'Review', icon: icons.review },
+    { to: base, label: 'Session', icon: icons.session, match: path => path === base },
+    { to: `${base}/receipts`, label: 'Receipts', icon: icons.receipts, match: path => path.includes('/receipts') && !path.includes('/splits') },
+    { to: `${base}/splits`, label: 'Splits', icon: icons.splits, match: path => path.includes('/splits') },
+    { to: `${base}/review`, label: 'Review', icon: icons.review, match: path => path.includes('/review') || path.includes('/payment-methods') },
   ];
 
   return (
     <nav className="bottom-nav">
-      {tabs.map(tab => (
-        <NavLink
-          key={tab.to}
-          to={tab.to}
-          end={tab.end}
-          className={({ isActive }) => `bottom-nav-item${isActive ? ' active' : ''}`}
-        >
-          {tab.icon}
-          {tab.label}
-        </NavLink>
-      ))}
+      {tabs.map(tab => {
+        const active = tab.match(location.pathname);
+        return (
+          <Link
+            key={tab.to}
+            to={tab.to}
+            className={`bottom-nav-item${active ? ' active' : ''}`}
+          >
+            {tab.icon}
+            {tab.label}
+          </Link>
+        );
+      })}
     </nav>
   );
 }

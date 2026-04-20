@@ -1,0 +1,24 @@
+- generic [ref=e30]:
+  - banner [ref=e31]:
+    - button "Back" [ref=e32] [cursor=pointer]:
+      - img [ref=e33]
+    - generic [ref=e35]: Create or Join Session
+    - generic [ref=e36]: J
+  - main [ref=e37]:
+    - generic [ref=e38]:
+      - generic [ref=e39]:
+        - heading "Start a Split" [level=2] [ref=e40]
+        - paragraph [ref=e41]: Create a curated session for upcoming shared expenses.
+        - generic [ref=e42]:
+          - button "Create" [ref=e43] [cursor=pointer]
+          - button "Join" [ref=e44] [cursor=pointer]
+      - generic [ref=e45]:
+        - generic [ref=e46]:
+          - generic [ref=e47]: Ledger Name
+          - textbox "Weekend Retreat" [ref=e48]
+        - generic [ref=e49]:
+          - generic [ref=e50]: Your Name
+          - textbox "Alex" [ref=e51]
+        - button "Create Ledger" [disabled] [ref=e52]:
+          - text: Create Ledger
+          - img [ref=e53]

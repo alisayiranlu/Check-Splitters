@@ -1,131 +1,109 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { useSession } from '../context/SessionContext';
+import { useSession } from '../context/useSession';
 import BottomNav from '../components/BottomNav';
+import SideMenu from '../components/SideMenu';
 
 export default function SessionLobby() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { session, participant, refreshSession } = useSession();
+  const { session, participant, refreshSession, clearSession } = useSession();
   const [copied, setCopied] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
 
   useEffect(() => {
     refreshSession();
-  }, []);
+  }, [refreshSession]);
 
   if (!session) return null;
 
   function copyCode() {
     navigator.clipboard.writeText(session.code);
     setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    setTimeout(() => setCopied(false), 1800);
   }
 
   const participants = session.participants ?? [];
+  const receipts = session.receipts ?? [];
 
   return (
     <div className="page">
-      <div className="topbar">
-        <button className="icon-btn" onClick={() => navigate('/')}>
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/>
+      <header className="topbar">
+        <button className="icon-btn" onClick={() => setMenuOpen(true)} aria-label="Menu">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round">
+            <line x1="4" y1="7" x2="20" y2="7" />
+            <line x1="4" y1="12" x2="20" y2="12" />
+            <line x1="4" y1="17" x2="20" y2="17" />
           </svg>
         </button>
         <span className="topbar-title">Session Lobby</span>
         {participant && (
-          <div className="avatar" style={{ background: participant.avatar_color, width: 32, height: 32, fontSize: '0.8rem' }}>
+          <div className="avatar" style={{ width: 32, height: 32, background: participant.avatar_color }}>
             {participant.name?.[0]?.toUpperCase()}
           </div>
         )}
-      </div>
+      </header>
 
-      <div className="page-content">
-        <div>
-          <div style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--primary)', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 4 }}>
-            Active Session
-          </div>
-          <h1 style={{ fontSize: '1.75rem' }}>{session.name}</h1>
-          <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', marginTop: 6 }}>
-            The Admin has final authority to close out the ledger and distribute splits.
-          </p>
-        </div>
+      <main className="page-content">
+        <section style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <div className="eyebrow">Active Session</div>
+          <h1>{session.name}</h1>
+          <p className="muted">The admin has final authority to close out this ledger and distribute splits.</p>
+        </section>
 
-        {/* Invite code */}
-        <div className="card" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <section className="card row-between">
           <div>
-            <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: 2 }}>Invite Code</div>
-            <div style={{ fontSize: '1.5rem', fontWeight: 800, letterSpacing: '0.2em', color: 'var(--primary)' }}>
-              {session.code}
-            </div>
+            <p className="muted">Invite Code</p>
+            <div className="amount" style={{ fontSize: '1.75rem', letterSpacing: '0.16em' }}>{session.code}</div>
           </div>
-          <button className="btn btn-outline" style={{ width: 'auto', padding: '8px 16px', fontSize: '0.875rem' }} onClick={copyCode}>
-            {copied ? 'Copied!' : 'Copy'}
+          <button className="btn btn-primary" style={{ width: 'auto', minHeight: 38, padding: '8px 18px' }} onClick={copyCode}>
+            {copied ? 'Copied' : 'Invite'}
           </button>
-        </div>
+        </section>
 
-        {/* Members */}
-        <div className="card">
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+        <section className="card">
+          <div className="row-between" style={{ marginBottom: 22 }}>
             <div>
               <h3>Group Members</h3>
-              <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: 2 }}>
-                {participants.length} Participant{participants.length !== 1 ? 's' : ''}
-              </div>
+              <p className="muted">{participants.length} participant{participants.length === 1 ? '' : 's'}</p>
             </div>
-            <button
-              className="btn btn-primary"
-              style={{ width: 'auto', padding: '8px 14px', fontSize: '0.8rem' }}
-              onClick={copyCode}
-            >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
-                <line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/>
-              </svg>
+            <button className="btn btn-primary" style={{ width: 'auto', minHeight: 36, padding: '8px 16px' }} onClick={copyCode}>
               Invite
             </button>
           </div>
 
-          {participants.map(p => (
-            <div key={p.id} className="list-row">
-              <div className="avatar" style={{ background: p.avatar_color }}>
-                {p.name[0].toUpperCase()}
+          <div className="list-stack" style={{ gap: 18 }}>
+            {participants.map(p => (
+              <div key={p.id} className="row-between">
+                <div className="list-row">
+                  <div className="avatar" style={{ background: p.avatar_color }}>
+                    {p.name[0].toUpperCase()}
+                  </div>
+                  <strong>{p.name}</strong>
+                </div>
+                {p.is_admin ? <span className="badge">Admin</span> : null}
               </div>
-              <div style={{ flex: 1, fontWeight: 500 }}>{p.name}</div>
-              {p.is_admin ? <span className="badge badge-admin">ADMIN</span> : null}
-            </div>
-          ))}
-        </div>
-
-        {/* Empty state / New Receipt CTA */}
-        {(session.receipts ?? []).length === 0 ? (
-          <div className="empty-state">
-            <h3>Ready to start splitting?</h3>
-            <p>Add your first receipt to this session.</p>
-            <button
-              className="btn"
-              style={{ background: '#fff', color: 'var(--primary)', width: 'auto', padding: '10px 20px' }}
-              onClick={() => navigate(`/session/${id}/receipts/add`)}
-            >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-                <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
-              </svg>
-              New Receipt
-            </button>
+            ))}
           </div>
-        ) : (
-          <button
-            className="btn btn-primary"
-            onClick={() => navigate(`/session/${id}/receipts/add`)}
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-              <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
-            </svg>
-            New Receipt
+        </section>
+
+        <section className="empty-state">
+          <h3>{receipts.length ? 'Ready for another receipt?' : 'Ready to start splitting?'}</h3>
+          <p>{receipts.length ? `${receipts.length} receipt${receipts.length === 1 ? '' : 's'} in this session.` : 'Add your first receipt to this session.'}</p>
+          <button className="btn" style={{ width: 'auto', background: '#fff', color: 'var(--primary)' }} onClick={() => navigate(`/session/${id}/receipts/add`)}>
+            Add Receipt
           </button>
-        )}
-      </div>
+        </section>
+      </main>
 
       <BottomNav sessionId={id} />
+      <SideMenu
+        open={menuOpen}
+        onClose={() => setMenuOpen(false)}
+        sessionId={id}
+        participant={participant}
+        clearSession={clearSession}
+      />
     </div>
   );
 }

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { api } from '../api';
-import { useSession } from '../context/SessionContext';
+import { useSession } from '../context/useSession';
 import BottomNav from '../components/BottomNav';
 
 export default function SplitsOverview() {
@@ -14,56 +14,66 @@ export default function SplitsOverview() {
     api.getReview(sessionId).then(setReview);
   }, [sessionId]);
 
-  if (!review) return (
-    <div className="page">
-      <BottomNav sessionId={sessionId} />
-    </div>
-  );
+  if (!review) {
+    return <div className="page"><div className="page-content">Loading</div><BottomNav sessionId={sessionId} /></div>;
+  }
 
   return (
     <div className="page">
-      <div className="topbar">
-        <div style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>{session?.name}</div>
+      <header className="topbar">
+        <button className="topbar-back" onClick={() => navigate(`/session/${sessionId}/receipts`)} aria-label="Back">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="15 18 9 12 15 6" />
+          </svg>
+        </button>
         <span className="topbar-title">Splits</span>
-        <div style={{ width: 30 }} />
-      </div>
+        <div style={{ width: 32 }} />
+      </header>
 
-      <div className="page-content">
-        <div className="card">
-          <h3 style={{ marginBottom: 16 }}>Who owes what</h3>
-          {review.participants.length === 0 ? (
-            <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>No splits assigned yet.</p>
-          ) : (
-            review.participants.map(p => (
-              <div key={p.id} className="list-row">
-                <div className="avatar" style={{ background: p.avatar_color }}>
-                  {p.name[0].toUpperCase()}
-                </div>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontWeight: 600 }}>{p.name}</div>
-                  <div style={{ fontSize: '0.775rem', color: 'var(--text-secondary)' }}>
-                    {p.itemCount} item{p.itemCount !== 1 ? 's' : ''}
+      <main className="page-content">
+        <section style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <div className="eyebrow">{session?.name ?? 'Ledger'}</div>
+          <h1>Who owes what</h1>
+          <p className="muted">Review each participant total before the final confirmation.</p>
+        </section>
+
+        <section className="card">
+          <div className="list-stack">
+            {review.participants.length === 0 ? (
+              <p className="muted">No splits assigned yet.</p>
+            ) : (
+              review.participants.map((p, index) => (
+                <div key={p.id} className="row-between">
+                  <div className="list-row">
+                    <div className={`avatar${index === 1 ? ' soft' : ''}`} style={{ background: index === 2 ? 'var(--warm)' : undefined }}>
+                      {p.name[0].toUpperCase()}
+                    </div>
+                    <div>
+                      <h3>{p.name}</h3>
+                      <p className="muted">{p.itemCount} item{p.itemCount === 1 ? '' : 's'}</p>
+                    </div>
                   </div>
+                  <h3>${p.total.toFixed(2)}</h3>
                 </div>
-                <div style={{ fontWeight: 800, fontSize: '1.1rem' }}>${p.total.toFixed(2)}</div>
-              </div>
-            ))
-          )}
-        </div>
-
-        {review.grandTotal > 0 && (
-          <div className="card" style={{ background: 'var(--primary)', color: '#fff' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontWeight: 600 }}>Grand Total</span>
-              <span style={{ fontWeight: 800, fontSize: '1.25rem' }}>${review.grandTotal.toFixed(2)}</span>
-            </div>
+              ))
+            )}
           </div>
-        )}
+        </section>
+
+        <section className="card tonal">
+          <div className="row-between">
+            <div>
+              <p className="muted">Grand Total</p>
+              <div className="amount" style={{ fontSize: '2rem' }}>${review.grandTotal.toFixed(2)}</div>
+            </div>
+            <div className="receipt-thumb">SUM</div>
+          </div>
+        </section>
 
         <button className="btn btn-primary" onClick={() => navigate(`/session/${sessionId}/review`)}>
-          Go to Final Review
+          Continue to Final Review
         </button>
-      </div>
+      </main>
 
       <BottomNav sessionId={sessionId} />
     </div>

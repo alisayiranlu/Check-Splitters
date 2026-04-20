@@ -1,0 +1,67 @@
+- generic [ref=e138]:
+  - generic [ref=e139]:
+    - button "Back" [ref=e140] [cursor=pointer]:
+      - img [ref=e141]
+    - generic [ref=e143]: Payment Methods
+    - generic [ref=e144]: A
+  - main [ref=e145]:
+    - generic [ref=e146]:
+      - heading "Payment Methods" [level=1] [ref=e147]
+      - paragraph [ref=e148]: Manage your linked cards and digital wallets.
+      - button "Add Payment Method" [ref=e149] [cursor=pointer]:
+        - img [ref=e150]
+        - text: Add Payment Method
+    - generic [ref=e151]:
+      - heading "Digital Wallets" [level=3] [ref=e152]
+      - generic [ref=e154]:
+        - generic [ref=e155]:
+          - strong [ref=e157]: Pay
+          - generic [ref=e158]:
+            - heading "Apple Pay" [level=3] [ref=e159]
+            - paragraph [ref=e160]: Default for splitting bills
+        - generic [ref=e161]: Default
+      - generic [ref=e163]:
+        - generic [ref=e164]:
+          - strong [ref=e166]: G
+          - generic [ref=e167]:
+            - heading "Google Pay" [level=3] [ref=e168]
+            - paragraph [ref=e169]: Tap to set as default
+        - button "More options" [ref=e170] [cursor=pointer]:
+          - img [ref=e171]
+    - generic [ref=e175]:
+      - heading "Linked Cards" [level=3] [ref=e176]
+      - generic [ref=e177]:
+        - generic [ref=e178]:
+          - generic [ref=e179]: Visa
+          - generic [ref=e180]:
+            - heading "Chase Sapphire Reserve" [level=3] [ref=e181]
+            - paragraph [ref=e182]:
+              - text: ending 4242
+              - generic [ref=e183]: Active
+        - button "Edit" [ref=e184] [cursor=pointer]
+      - generic [ref=e185]:
+        - generic [ref=e186]:
+          - generic [ref=e187]: Amex
+          - generic [ref=e188]:
+            - heading "American Express Gold" [level=3] [ref=e189]
+            - paragraph [ref=e190]:
+              - text: ending 1005
+              - generic [ref=e191]: Expired
+        - button "Edit" [ref=e192] [cursor=pointer]
+  - navigation [ref=e193]:
+    - link "Session" [ref=e194] [cursor=pointer]:
+      - /url: /session/dceab009-8540-479f-9aca-9a70aa330e38
+      - img [ref=e195]
+      - text: Session
+    - link "Receipts" [ref=e200] [cursor=pointer]:
+      - /url: /session/dceab009-8540-479f-9aca-9a70aa330e38/receipts
+      - img [ref=e201]
+      - text: Receipts
+    - link "Splits" [ref=e204] [cursor=pointer]:
+      - /url: /session/dceab009-8540-479f-9aca-9a70aa330e38/splits
+      - img [ref=e205]
+      - text: Splits
+    - link "Review" [ref=e209] [cursor=pointer]:
+      - /url: /session/dceab009-8540-479f-9aca-9a70aa330e38/review
+      - img [ref=e210]
+      - text: Review

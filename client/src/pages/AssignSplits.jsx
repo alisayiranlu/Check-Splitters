@@ -1,29 +1,32 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { api } from '../api';
-import { useSession } from '../context/SessionContext';
+import { useSession } from '../context/useSession';
 import BottomNav from '../components/BottomNav';
 
 export default function AssignSplits() {
   const { id: sessionId, receiptId } = useParams();
   const navigate = useNavigate();
-  const { session } = useSession();
+  const { session, refreshSession } = useSession();
   const [receipt, setReceipt] = useState(null);
-  // assignments: { [itemId]: Set of participantIds }
   const [assignments, setAssignments] = useState({});
   const [saving, setSaving] = useState(false);
+  const [showCustomCharge, setShowCustomCharge] = useState(false);
+  const [customName, setCustomName] = useState('Custom Tip');
+  const [customAmount, setCustomAmount] = useState('');
+  const [savingCustomCharge, setSavingCustomCharge] = useState(false);
 
   useEffect(() => {
+    refreshSession();
     api.getReceipt(receiptId).then(r => {
       setReceipt(r);
-      // Init assignments from existing splits
       const init = {};
       r.items.forEach(item => {
         init[item.id] = new Set(item.splits?.map(s => s.participant_id) ?? []);
       });
       setAssignments(init);
     });
-  }, [receiptId]);
+  }, [receiptId, refreshSession]);
 
   function toggleParticipant(itemId, participantId) {
     setAssignments(prev => {
@@ -53,8 +56,7 @@ export default function AssignSplits() {
     if (!receipt) return 0;
     return receipt.items.reduce((sum, item) => {
       const assigned = assignments[item.id] ?? new Set();
-      if (assigned.size === 0) return sum + getItemTotal(item);
-      return sum;
+      return assigned.size === 0 ? sum + getItemTotal(item) : sum;
     }, 0);
   }
 
@@ -70,63 +72,90 @@ export default function AssignSplits() {
         };
       });
       await api.updateSplits(receiptId, splits);
-      navigate(`/session/${sessionId}/receipts`);
+      await refreshSession();
+      navigate(`/session/${sessionId}/splits`);
     } finally {
       setSaving(false);
     }
   }
 
+  async function handleAddCustomCharge(e) {
+    e.preventDefault();
+    const amount = parseFloat(customAmount);
+    if (!customName.trim() || !Number.isFinite(amount) || amount <= 0) return;
+
+    setSavingCustomCharge(true);
+    try {
+      const updated = await api.addReceiptItem(receiptId, {
+        name: customName.trim(),
+        quantity: 1,
+        price: amount,
+        isTaxTip: true,
+      });
+      const addedItem = updated.items[updated.items.length - 1];
+      setReceipt(updated);
+      setAssignments(prev => ({
+        ...prev,
+        [addedItem.id]: new Set(participants.map(p => p.id)),
+      }));
+      setCustomName('Custom Tip');
+      setCustomAmount('');
+      setShowCustomCharge(false);
+    } finally {
+      setSavingCustomCharge(false);
+    }
+  }
+
   const participants = session?.participants ?? [];
+  const total = receipt?.items.reduce((s, i) => s + i.price * i.quantity, 0) ?? 0;
   const unassigned = getUnassignedTotal();
 
-  if (!receipt) return <div className="page"><div className="page-content" style={{ alignItems: 'center', justifyContent: 'center' }}>Loading...</div></div>;
+  if (!receipt) {
+    return <div className="page"><div className="page-content" style={{ justifyContent: 'center' }}>Loading</div><BottomNav sessionId={sessionId} /></div>;
+  }
 
   return (
     <div className="page">
-      <div className="topbar">
-        <button className="topbar-back" onClick={() => navigate(-1)}>
+      <header className="topbar">
+        <button className="topbar-back" onClick={() => navigate(`/session/${sessionId}/receipts/${receiptId}/edit`)} aria-label="Back">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            <polyline points="15 18 9 12 15 6"/>
+            <polyline points="15 18 9 12 15 6" />
           </svg>
         </button>
         <span className="topbar-title">Assign Splits</span>
-        <div style={{ width: 30 }} />
-      </div>
+        <div className="avatar" style={{ width: 32, height: 32, background: 'var(--text)' }}>{participants[0]?.name?.[0]?.toUpperCase() ?? 'A'}</div>
+      </header>
 
-      <div className="page-content">
-        <div>
-          <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-            {receipt.scanned_at ? `Dinner at` : 'Receipt'}
-          </div>
-          <h1 style={{ fontSize: '1.5rem' }}>{receipt.name}</h1>
-          <div style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', marginTop: 2 }}>
-            Total Bill
-          </div>
-          <div className="amount">
-            ${receipt.items.reduce((s, i) => s + i.price * i.quantity, 0).toFixed(2)}
-          </div>
+      <main className="page-content">
+        <section style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          <div className="eyebrow">Dinner at</div>
+          <h1>{receipt.name.replace(/^Dinner at\s+/i, '')}</h1>
+          <p className="muted">Total Bill</p>
+          <div className="amount">${total.toFixed(2)}</div>
+        </section>
+
+        <div className="tabs">
+          <button className="tab active" type="button">By Item</button>
+          <button className="tab" type="button">By Percentage</button>
         </div>
 
-        <h3 style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>Assign Items</h3>
-
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-          {receipt.items.map(item => {
+        <section className="list-stack" style={{ gap: 16 }}>
+          <h3>Assign Items</h3>
+          {receipt.items.map((item, index) => {
             const assigned = assignments[item.id] ?? new Set();
             return (
-              <div key={item.id} className="card" style={{ padding: '14px 16px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+              <div key={item.id} className={`card${index % 2 ? ' tonal' : ''}`}>
+                <div className="row-between" style={{ alignItems: 'flex-start', marginBottom: 16 }}>
                   <div>
-                    <div style={{ fontWeight: 600 }}>{item.name}</div>
-                    {item.is_tax_tip ? (
-                      <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Tax &amp; Tip</div>
-                    ) : null}
+                    <h3>{item.name}</h3>
+                    <p className="muted">{item.is_tax_tip ? 'Tax and tip' : item.quantity > 1 ? `Qty ${item.quantity}` : 'Item'}</p>
                   </div>
-                  <div style={{ fontWeight: 700 }}>${getItemTotal(item).toFixed(2)}</div>
+                  <h3>${getItemTotal(item).toFixed(2)}</h3>
                 </div>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12 }}>
                   {participants.map(p => {
                     const isSelected = assigned.has(p.id);
-                    const splitAmt = isSelected && assigned.size > 0 ? getItemTotal(item) / assigned.size : null;
+                    const splitAmt = isSelected && assigned.size > 1 ? getItemTotal(item) / assigned.size : null;
                     return (
                       <button
                         key={p.id}
@@ -134,9 +163,8 @@ export default function AssignSplits() {
                         onClick={() => toggleParticipant(item.id, p.id)}
                       >
                         {p.name.split(' ')[0]}
-                        {isSelected && splitAmt !== null && (
-                          <span style={{ marginLeft: 4, opacity: 0.85 }}>${splitAmt.toFixed(2)}</span>
-                        )}
+                        {splitAmt !== null ? <span style={{ marginLeft: 8, opacity: 0.8 }}>${splitAmt.toFixed(2)}</span> : null}
+                        {isSelected ? <span style={{ marginLeft: 8 }}>x</span> : null}
                       </button>
                     );
                   })}
@@ -144,34 +172,91 @@ export default function AssignSplits() {
               </div>
             );
           })}
-        </div>
+        </section>
 
-        {/* Current breakdown */}
-        <div className="card">
-          <h3 style={{ marginBottom: 12 }}>Current Breakdown</h3>
-          {participants.map(p => (
-            <div key={p.id} className="list-row" style={{ padding: '10px 0' }}>
-              <div className="avatar" style={{ background: p.avatar_color, width: 28, height: 28, fontSize: '0.75rem' }}>
-                {p.name[0].toUpperCase()}
-              </div>
-              <div style={{ flex: 1, fontWeight: 500 }}>{p.name}</div>
-              <div style={{ fontWeight: 700 }}>${getParticipantTotal(p.id).toFixed(2)}</div>
+        <section className="card" style={{ position: 'relative', overflow: 'hidden' }}>
+          <div style={{ position: 'absolute', top: 0, right: 0, width: 128, height: 128, borderRadius: '0 0 0 999px', background: 'rgba(0, 104, 95, 0.05)' }} />
+          <div style={{ position: 'relative' }}>
+            <h3 style={{ marginBottom: 22 }}>Current Breakdown</h3>
+            <div className="list-stack" style={{ gap: 20 }}>
+              {participants.map(p => (
+                <div className="row-between" key={p.id}>
+                  <div className="list-row">
+                    <div className="avatar soft" style={{ width: 32, height: 32 }}>
+                      {p.name[0].toUpperCase()}
+                    </div>
+                    <strong>{p.name}</strong>
+                  </div>
+                  <h3>${getParticipantTotal(p.id).toFixed(2)}</h3>
+                </div>
+              ))}
             </div>
-          ))}
-          {unassigned > 0 && (
-            <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 0', borderTop: '1px solid var(--border)', marginTop: 4 }}>
-              <span style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>Unassigned</span>
-              <span style={{ color: 'var(--danger)', fontWeight: 700 }}>${unassigned.toFixed(2)}</span>
+            <div className="total-line strong">
+              <span>Unassigned</span>
+              <span className={unassigned > 0 ? 'danger-text' : ''}>${unassigned.toFixed(2)}</span>
             </div>
-          )}
-        </div>
+          </div>
+        </section>
 
-        <button className="btn btn-primary" onClick={handleFinalize} disabled={saving}>
-          {saving ? 'Saving...' : 'Finalize Splits'}
-        </button>
-      </div>
+        <section className="card tonal" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <button className="btn btn-primary" onClick={handleFinalize} disabled={saving}>
+            {saving ? 'Saving' : 'Finalize Splits'}
+          </button>
+          <button className="btn btn-secondary" type="button" onClick={() => setShowCustomCharge(true)}>
+            Add Custom Tip/Tax
+          </button>
+        </section>
+      </main>
+
+      {showCustomCharge && (
+        <CustomChargeSheet
+          name={customName}
+          amount={customAmount}
+          saving={savingCustomCharge}
+          onNameChange={setCustomName}
+          onAmountChange={setCustomAmount}
+          onClose={() => setShowCustomCharge(false)}
+          onSubmit={handleAddCustomCharge}
+        />
+      )}
 
       <BottomNav sessionId={sessionId} />
+    </div>
+  );
+}
+
+function CustomChargeSheet({ name, amount, saving, onNameChange, onAmountChange, onClose, onSubmit }) {
+  return (
+    <div className="floating-sheet" role="dialog" aria-modal="true" aria-label="Add custom tip or tax">
+      <button className="floating-sheet-scrim" type="button" onClick={onClose} aria-label="Close custom charge" />
+      <form className="floating-sheet-panel" onSubmit={onSubmit}>
+        <div className="row-between" style={{ alignItems: 'flex-start', marginBottom: 22 }}>
+          <div>
+            <h2>Add Custom Tip/Tax</h2>
+            <p className="muted" style={{ marginTop: 6 }}>Add a tax, service fee, or shared tip to this receipt.</p>
+          </div>
+          <button className="icon-btn" type="button" onClick={onClose} aria-label="Close">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
+        </div>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <div>
+            <label>Label</label>
+            <input className="input" value={name} onChange={e => onNameChange(e.target.value)} placeholder="Custom Tip" />
+          </div>
+          <div>
+            <label>Amount</label>
+            <input className="input" type="number" min="0" step="0.01" value={amount} onChange={e => onAmountChange(e.target.value)} placeholder="0.00" />
+          </div>
+          <button className="btn btn-primary" type="submit" disabled={saving || !name.trim() || !(parseFloat(amount) > 0)}>
+            {saving ? 'Adding' : 'Add to Receipt'}
+          </button>
+        </div>
+      </form>
     </div>
   );
 }

@@ -1,0 +1,76 @@
+- generic [ref=e292]:
+  - banner [ref=e293]:
+    - button "Back" [ref=e294] [cursor=pointer]:
+      - img [ref=e295]
+    - generic [ref=e297]: Edit Items
+    - button "Done Editing" [ref=e298] [cursor=pointer]
+  - main [ref=e299]:
+    - generic [ref=e300]:
+      - generic [ref=e301]: Scanned Apr 20, 2026
+      - heading "Dinner at Cafe Test" [level=1] [ref=e302]
+      - paragraph [ref=e303]: Receipt Total
+      - generic [ref=e304]: $142.50
+    - generic [ref=e305]:
+      - generic [ref=e307]:
+        - generic [ref=e308]:
+          - textbox "Item name" [ref=e309]: Steak Frites
+          - button "Remove item" [ref=e310] [cursor=pointer]:
+            - img [ref=e311]
+        - generic [ref=e313]:
+          - generic [ref=e314]:
+            - generic [ref=e315]: Qty
+            - button "Decrease quantity" [ref=e316] [cursor=pointer]:
+              - img [ref=e317]
+            - strong [ref=e318]: "1"
+            - button "+" [ref=e319] [cursor=pointer]
+          - generic [ref=e320]:
+            - generic [ref=e321]: $
+            - spinbutton [ref=e322]: "45.00"
+      - generic [ref=e324]:
+        - generic [ref=e325]:
+          - textbox "Item name" [ref=e326]: Oysters Half Dozen
+          - button "Remove item" [ref=e327] [cursor=pointer]:
+            - img [ref=e328]
+        - generic [ref=e330]:
+          - generic [ref=e331]:
+            - generic [ref=e332]: Qty
+            - button "Decrease quantity" [ref=e333] [cursor=pointer]:
+              - img [ref=e334]
+            - strong [ref=e335]: "1"
+            - button "+" [ref=e336] [cursor=pointer]
+          - generic [ref=e337]:
+            - generic [ref=e338]: $
+            - spinbutton [ref=e339]: "24.00"
+      - generic [ref=e341]:
+        - generic [ref=e342]:
+          - textbox "Item name" [ref=e343]: House Wine Bottle
+          - button "Remove item" [ref=e344] [cursor=pointer]:
+            - img [ref=e345]
+        - generic [ref=e347]:
+          - generic [ref=e348]:
+            - generic [ref=e349]: Qty
+            - button "Decrease quantity" [ref=e350] [cursor=pointer]:
+              - img [ref=e351]
+            - strong [ref=e352]: "1"
+            - button "+" [ref=e353] [cursor=pointer]
+          - generic [ref=e354]:
+            - generic [ref=e355]: $
+            - spinbutton [ref=e356]: "52.00"
+      - generic [ref=e358]:
+        - generic [ref=e359]:
+          - textbox "Item name" [ref=e360]: Tax and Tip
+          - button "Remove item" [ref=e361] [cursor=pointer]:
+            - img [ref=e362]
+        - generic [ref=e364]:
+          - generic [ref=e365]:
+            - generic [ref=e366]: Qty
+            - button "Decrease quantity" [ref=e367] [cursor=pointer]:
+              - img [ref=e368]
+            - strong [ref=e369]: "1"
+            - button "+" [ref=e370] [cursor=pointer]
+          - generic [ref=e371]:
+            - generic [ref=e372]: $
+            - spinbutton [ref=e373]: "21.50"
+    - button "Add Manual Item" [ref=e374] [cursor=pointer]:
+      - img [ref=e375]
+      - text: Add Manual Item

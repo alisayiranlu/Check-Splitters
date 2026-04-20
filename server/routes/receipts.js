@@ -53,6 +53,32 @@ router.get('/:id', (req, res) => {
   res.json({ ...receipt, items: itemsWithSplits });
 });
 
+router.post('/:id/items', (req, res) => {
+  const { name, quantity, price, isTaxTip } = req.body;
+  if (!name || price === undefined) return res.status(400).json({ error: 'name and price are required' });
+
+  const receipt = db.prepare('SELECT * FROM receipts WHERE id = ?').get(req.params.id);
+  if (!receipt) return res.status(404).json({ error: 'Receipt not found' });
+
+  const itemId = uuidv4();
+  db.prepare(
+    'INSERT INTO items (id, receipt_id, name, quantity, price, is_tax_tip, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)'
+  ).run(itemId, receipt.id, name, quantity || 1, price, isTaxTip ? 1 : 0, Date.now());
+
+  const items = db.prepare('SELECT * FROM items WHERE receipt_id = ? ORDER BY created_at ASC').all(receipt.id);
+  const itemsWithSplits = items.map(item => {
+    const splits = db.prepare(`
+      SELECT s.*, p.name as participant_name, p.avatar_color
+      FROM splits s
+      JOIN participants p ON s.participant_id = p.id
+      WHERE s.item_id = ?
+    `).all(item.id);
+    return { ...item, splits };
+  });
+
+  res.json({ ...receipt, items: itemsWithSplits });
+});
+
 // Update items on a receipt
 router.put('/:id/items', (req, res) => {
   const { items } = req.body;
