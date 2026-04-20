@@ -9,6 +9,7 @@ import EditItems from './pages/EditItems';
 import AssignSplits from './pages/AssignSplits';
 import SplitsOverview from './pages/SplitsOverview';
 import FinalReview from './pages/FinalReview';
+import Settlement from './pages/Settlement';
 
 export default function App() {
   return (
@@ -26,6 +27,7 @@ export default function App() {
           <Route path="/session/:id/receipts/:receiptId/splits" element={<AssignSplits />} />
           <Route path="/session/:id/splits" element={<SplitsOverview />} />
           <Route path="/session/:id/review" element={<FinalReview />} />
+          <Route path="/session/:id/settle" element={<Settlement />} />
         </Routes>
       </BrowserRouter>
     </SessionProvider>

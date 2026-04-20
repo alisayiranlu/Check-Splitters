@@ -122,7 +122,7 @@ export default function AssignSplits() {
         });
       }
       await api.updateSplits(receiptId, splits);
-      navigate(`/session/${sessionId}/receipts`);
+      navigate(`/session/${sessionId}/settle`);
     } finally {
       setSaving(false);
     }
