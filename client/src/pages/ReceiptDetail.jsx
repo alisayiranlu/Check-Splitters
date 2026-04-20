@@ -7,10 +7,23 @@ export default function ReceiptDetail() {
   const { id: sessionId, receiptId } = useParams();
   const navigate = useNavigate();
   const [receipt, setReceipt] = useState(null);
+  const [error, setError] = useState('');
 
   useEffect(() => {
-    api.getReceipt(receiptId).then(setReceipt);
+    api
+      .getReceipt(receiptId)
+      .then(setReceipt)
+      .catch(() => setError('Unable to load this receipt.'));
   }, [receiptId]);
+
+  if (error) return (
+    <div className="page">
+      <div className="page-content" style={{ alignItems: 'center', justifyContent: 'center' }}>
+        <p className="muted">{error}</p>
+      </div>
+      <BottomNav sessionId={sessionId} />
+    </div>
+  );
 
   if (!receipt) return (
     <div className="page">
