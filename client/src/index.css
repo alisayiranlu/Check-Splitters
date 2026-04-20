@@ -61,6 +61,14 @@ body {
       0 0 0 12px #3a3a5a,
       0 30px 80px rgba(0,0,0,0.6);
     position: relative;
+    /* Makes #root the containing block for fixed-position children,
+       so the bottom nav and sticky topbar stay inside the phone frame */
+    transform: translate(0);
+  }
+
+  .page {
+    overflow-y: auto;
+    height: 100%;
   }
 
   /* Notch */
