@@ -1,17 +1,22 @@
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
+import { useSession } from '../context/useSession';
 
 export default function SideMenu({ open, onClose, sessionId, participant, clearSession }) {
   const navigate = useNavigate();
-  const name = participant?.name?.trim() || 'Guest';
+  const params = useParams();
+  const { session, participant: contextParticipant, clearSession: contextClearSession } = useSession();
+  const activeParticipant = participant || contextParticipant;
+  const activeSessionId = sessionId || params.id || session?.id;
+  const name = activeParticipant?.name?.trim() || 'Guest';
 
   function goToPaymentSettings() {
     onClose();
-    if (sessionId) navigate(`/session/${sessionId}/payment-methods`);
-    else navigate('/create');
+    if (activeSessionId) navigate(`/session/${activeSessionId}/payment-methods`);
+    else navigate('/join');
   }
 
   function exitSession() {
-    clearSession?.();
+    (clearSession || contextClearSession)?.();
     onClose();
     navigate('/');
   }
@@ -24,7 +29,7 @@ export default function SideMenu({ open, onClose, sessionId, participant, clearS
       <aside className="side-drawer">
         <div>
           <div className="drawer-profile">
-            <div className="avatar drawer-avatar" style={{ background: participant?.avatar_color || 'var(--primary)' }}>
+            <div className="avatar drawer-avatar" style={{ background: activeParticipant?.avatar_color || 'var(--primary)' }}>
               {initials(name)}
             </div>
             <h3>{name}</h3>
