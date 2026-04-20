@@ -516,6 +516,16 @@ label {
   color: var(--danger);
 }
 
+.amount-danger,
+.total-line.strong .amount-danger {
+  color: var(--danger);
+}
+
+.amount-success,
+.total-line.strong .amount-success {
+  color: var(--primary);
+}
+
 .drawer-layer {
   position: absolute;
   inset: 0;

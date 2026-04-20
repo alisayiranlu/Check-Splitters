@@ -243,7 +243,7 @@ export default function AssignSplits() {
                 </div>
                 <div className="total-line strong">
                   <span>Unassigned</span>
-                  <span className={unassigned > 0 ? 'danger-text' : ''}>${unassigned.toFixed(2)}</span>
+                  <span className={unassigned > 0 ? 'amount-danger' : 'amount-success'}>${unassigned.toFixed(2)}</span>
                 </div>
               </div>
             </section>
