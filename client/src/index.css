@@ -54,7 +54,7 @@ body {
     min-height: 0;
     height: 820px;
     max-height: 90dvh;
-    border-radius: 48px;
+    border-radius: 36px;
     overflow: hidden;
     box-shadow:
       0 0 0 10px #2a2a3e,
@@ -78,10 +78,10 @@ body {
     top: 0;
     left: 50%;
     transform: translateX(-50%);
-    width: 120px;
-    height: 28px;
-    background: #2a2a3e;
-    border-radius: 0 0 20px 20px;
+    width: 100px;
+    height: 18px;
+    background: #16213e;
+    border-radius: 0 0 14px 14px;
     z-index: 100;
   }
 
@@ -102,6 +102,10 @@ body {
   .bottom-nav {
     border-radius: 0 0 36px 36px;
     padding-bottom: 16px;
+  }
+
+  .topbar {
+    padding-top: 42px;
   }
 }
 
@@ -204,8 +208,7 @@ label {
   align-items: center;
   justify-content: space-between;
   padding: 14px 16px;
-  background: var(--surface);
-  border-bottom: 1px solid var(--border);
+  background: #16213e;
   position: sticky;
   top: 0;
   z-index: 10;
@@ -214,16 +217,25 @@ label {
   font-size: 1rem;
   font-weight: 700;
   color: var(--primary);
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  white-space: nowrap;
+  pointer-events: none;
 }
 .topbar-back {
   background: none;
   border: none;
   cursor: pointer;
-  color: var(--text);
+  color: rgba(255,255,255,0.8);
   display: flex;
   align-items: center;
   font-size: 1.25rem;
   padding: 4px;
+}
+.topbar .icon-btn {
+  color: rgba(255,255,255,0.8);
 }
 
 /* Bottom nav */
