@@ -47,10 +47,22 @@ const PAYMENT_APPS = [
 export default function FinalReview() {
   const { id: sessionId } = useParams();
   const navigate = useNavigate();
-  const { session } = useSession();
+  const { session, participant } = useSession();
   const [review, setReview] = useState(null);
   const [connectedApp, setConnectedApp] = useState(null);
   const [requestSent, setRequestSent] = useState({});
+
+  const isAdmin = !!participant?.is_admin;
+  const [pickingReceipt, setPickingReceipt] = useState(false);
+
+  function handleEditSplits() {
+    const receipts = review?.receipts ?? [];
+    if (receipts.length === 1) {
+      navigate(`/session/${sessionId}/receipts/${receipts[0].id}/splits`);
+    } else {
+      setPickingReceipt(p => !p);
+    }
+  }
 
   useEffect(() => {
     api.getReview(sessionId).then(setReview);
@@ -94,6 +106,73 @@ export default function FinalReview() {
           <div style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', marginTop: 4 }}>Total Amount</div>
           <div className="amount">${review.grandTotal.toFixed(2)}</div>
         </div>
+
+        {/* Access notice */}
+        {isAdmin ? (
+          <>
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: 10,
+            padding: '10px 14px', borderRadius: 10,
+            background: 'var(--primary-light)', border: '1px solid var(--primary)',
+          }}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+            </svg>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--primary)' }}>Admin access</div>
+              <div style={{ fontSize: '0.75rem', color: 'var(--primary)', opacity: 0.8 }}>You can edit splits before requesting payment.</div>
+            </div>
+            <button
+              className="icon-btn"
+              style={{ color: 'var(--primary)', fontWeight: 600, fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: 4 }}
+              onClick={handleEditSplits}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+              </svg>
+              Edit
+            </button>
+          </div>
+          {pickingReceipt && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 8 }}>
+              <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: 600 }}>Select a receipt to edit:</div>
+              {(review?.receipts ?? []).map(r => (
+                <button
+                  key={r.id}
+                  onClick={() => navigate(`/session/${sessionId}/receipts/${r.id}/splits`)}
+                  style={{
+                    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                    padding: '10px 14px', borderRadius: 8,
+                    border: '1.5px solid var(--primary)', background: 'var(--surface)',
+                    cursor: 'pointer', fontWeight: 600, fontSize: '0.875rem', color: 'var(--text)',
+                  }}
+                >
+                  {r.name}
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="9 18 15 12 9 6"/>
+                  </svg>
+                </button>
+              ))}
+            </div>
+          )}
+          </>
+        ) : (
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: 10,
+            padding: '10px 14px', borderRadius: 10,
+            background: 'var(--bg)', border: '1px solid var(--border)',
+          }}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--text-secondary)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="3" y="11" width="18" height="11" rx="2"/>
+              <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+            </svg>
+            <div>
+              <div style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text)' }}>View only</div>
+              <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Only the session admin can edit splits.</div>
+            </div>
+          </div>
+        )}
 
         {/* Participant summary */}
         <div className="card">
