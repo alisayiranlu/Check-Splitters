@@ -110,14 +110,9 @@ export default function AssignSplits() {
   const total = receipt?.items.reduce((s, i) => s + i.price * i.quantity, 0) ?? 0;
   const unassigned = getUnassignedTotal();
   const receiptName = receipt?.name?.trim() ?? '';
-  const AT_SEPARATOR = ' at ';
-  const atIndex = receiptName.toLowerCase().indexOf(AT_SEPARATOR);
-  const suffixStart = atIndex + AT_SEPARATOR.length;
-  const prefixCandidate = atIndex > 0 ? receiptName.slice(0, atIndex).trim() : '';
-  const suffixCandidate = atIndex > 0 ? receiptName.slice(suffixStart).trim() : '';
-  const hasNamedPrefix = Boolean(prefixCandidate && suffixCandidate);
-  const receiptPrefix = hasNamedPrefix ? `${prefixCandidate} at` : '';
-  const receiptSuffix = hasNamedPrefix ? suffixCandidate : '';
+  const receiptNameMatch = receiptName.match(/^(.+?)\s+at\s+(.+)$/i);
+  const receiptPrefix = receiptNameMatch?.[1]?.trim() ? `${receiptNameMatch[1].trim()} at` : '';
+  const receiptSuffix = receiptNameMatch?.[2]?.trim() ?? '';
   const receiptEyebrow = receiptPrefix || (receipt?.scanned_at ? 'Scanned receipt' : 'Receipt');
   const receiptTitle = receiptSuffix || receiptName || 'Untitled receipt';
 
