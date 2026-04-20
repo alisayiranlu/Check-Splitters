@@ -59,7 +59,7 @@ export default function Receipts() {
                 key={receipt.id}
                 className="card"
                 style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 12 }}
-                onClick={() => navigate(`/session/${sessionId}/receipts/${receipt.id}/edit`)}
+                onClick={() => navigate(`/session/${sessionId}/receipts/${receipt.id}`)}
               >
                 <div style={{ background: 'var(--primary-light)', borderRadius: 10, padding: 10, flexShrink: 0 }}>
                   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
