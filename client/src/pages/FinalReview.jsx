@@ -10,6 +10,8 @@ export default function FinalReview() {
   const { session, participant } = useSession();
   const [review, setReview] = useState(null);
   const [confirmed, setConfirmed] = useState(false);
+  const [pickingReceipt, setPickingReceipt] = useState(false);
+  const isAdmin = !!participant?.is_admin;
 
   useEffect(() => {
     api.getReview(sessionId).then(setReview);
@@ -20,6 +22,15 @@ export default function FinalReview() {
     setTimeout(() => {
       alert('Payment requests sent');
     }, 300);
+  }
+
+  function handleEditSplits() {
+    const receipts = review?.receipts ?? [];
+    if (receipts.length === 1) {
+      navigate(`/session/${sessionId}/receipts/${receipts[0].id}/splits`);
+      return;
+    }
+    setPickingReceipt(prev => !prev);
   }
 
   if (!review) {
@@ -55,10 +66,30 @@ export default function FinalReview() {
         <section className="card">
           <div className="row-between" style={{ marginBottom: 22 }}>
             <h3>Participant Summary</h3>
-            <button className="btn btn-ghost" onClick={() => navigate(`/session/${sessionId}/splits`)}>
-              Edit
-            </button>
+            {isAdmin ? (
+              <button className="btn btn-ghost" onClick={handleEditSplits}>
+                Edit
+              </button>
+            ) : (
+              <span className="muted">View only</span>
+            )}
           </div>
+          {isAdmin && pickingReceipt && (
+            <div className="list-stack" style={{ gap: 10, marginBottom: 16 }}>
+              {(review.receipts ?? []).map(r => (
+                <button
+                  key={r.id}
+                  className="btn btn-secondary"
+                  type="button"
+                  style={{ justifyContent: 'space-between' }}
+                  onClick={() => navigate(`/session/${sessionId}/receipts/${r.id}/splits`)}
+                >
+                  <span>{r.name}</span>
+                  <span>{'>'}</span>
+                </button>
+              ))}
+            </div>
+          )}
           <div className="list-stack">
             {review.participants.map((p, index) => (
               <div key={p.id} className="row-between">

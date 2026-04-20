@@ -9,12 +9,15 @@ export default function AssignSplits() {
   const navigate = useNavigate();
   const { session, refreshSession } = useSession();
   const [receipt, setReceipt] = useState(null);
+  const [mode, setMode] = useState('item');
   const [assignments, setAssignments] = useState({});
+  const [percentages, setPercentages] = useState({});
   const [saving, setSaving] = useState(false);
   const [showCustomCharge, setShowCustomCharge] = useState(false);
   const [customName, setCustomName] = useState('Custom Tip');
   const [customAmount, setCustomAmount] = useState('');
   const [savingCustomCharge, setSavingCustomCharge] = useState(false);
+  const participants = session?.participants ?? [];
 
   useEffect(() => {
     refreshSession();
@@ -60,17 +63,52 @@ export default function AssignSplits() {
     }, 0);
   }
 
+  const pctTotal = Object.values(percentages).reduce((sum, value) => sum + (parseFloat(value) || 0), 0);
+  const pctValid = Math.abs(pctTotal - 100) < 0.01 && participants.every(p => (parseFloat(percentages[p.id]) || 0) > 0);
+
+  function setParticipantPct(participantId, value) {
+    if (value === '' || (/^\d{0,3}(\.\d{0,2})?$/.test(value) && parseFloat(value) <= 100)) {
+      setPercentages(prev => ({ ...prev, [participantId]: value }));
+    }
+  }
+
+  function splitEvenly() {
+    if (!participants.length) return;
+    const each = (100 / participants.length).toFixed(2);
+    const next = {};
+    participants.forEach((p, index) => {
+      const allocated = participants
+        .slice(0, index)
+        .reduce((sum, current) => sum + parseFloat(next[current.id] || 0), 0);
+      next[p.id] = index === participants.length - 1 ? (100 - allocated).toFixed(2) : each;
+    });
+    setPercentages(next);
+  }
+
   async function handleFinalize() {
     setSaving(true);
     try {
-      const splits = receipt.items.map(item => {
-        const assigned = Array.from(assignments[item.id] ?? []);
-        const perPerson = assigned.length > 0 ? getItemTotal(item) / assigned.length : 0;
-        return {
-          itemId: item.id,
-          assignments: assigned.map(pid => ({ participantId: pid, amount: perPerson })),
-        };
-      });
+      const splits = mode === 'item'
+        ? receipt.items.map(item => {
+            const assigned = Array.from(assignments[item.id] ?? []);
+            const perPerson = assigned.length > 0 ? getItemTotal(item) / assigned.length : 0;
+            return {
+              itemId: item.id,
+              assignments: assigned.map(pid => ({ participantId: pid, amount: perPerson })),
+            };
+          })
+        : receipt.items.map(item => {
+            const itemTotal = getItemTotal(item);
+            return {
+              itemId: item.id,
+              assignments: participants
+                .filter(p => (parseFloat(percentages[p.id]) || 0) > 0)
+                .map(p => ({
+                  participantId: p.id,
+                  amount: itemTotal * (parseFloat(percentages[p.id]) / 100),
+                })),
+            };
+          });
       await api.updateSplits(receiptId, splits);
       await refreshSession();
       navigate(`/session/${sessionId}/splits`);
@@ -106,9 +144,9 @@ export default function AssignSplits() {
     }
   }
 
-  const participants = session?.participants ?? [];
   const total = receipt?.items.reduce((s, i) => s + i.price * i.quantity, 0) ?? 0;
   const unassigned = getUnassignedTotal();
+  const canSave = mode === 'item' ? unassigned === 0 : pctValid;
   const receiptName = receipt?.name?.trim() ?? '';
   const receiptNameMatch = receiptName.match(/^(.+?)\s+at\s+(.+)$/i);
   const receiptPrefix = receiptNameMatch?.[1]?.trim() ? `${receiptNameMatch[1].trim()} at` : '';
@@ -141,71 +179,123 @@ export default function AssignSplits() {
         </section>
 
         <div className="tabs">
-          <button className="tab active" type="button">By Item</button>
-          <button className="tab" type="button">By Percentage</button>
+          <button className={`tab${mode === 'item' ? ' active' : ''}`} type="button" onClick={() => setMode('item')}>
+            By Item
+          </button>
+          <button className={`tab${mode === 'percentage' ? ' active' : ''}`} type="button" onClick={() => setMode('percentage')}>
+            By Percentage
+          </button>
         </div>
 
-        <section className="list-stack" style={{ gap: 16 }}>
-          <h3>Assign Items</h3>
-          {receipt.items.map((item, index) => {
-            const assigned = assignments[item.id] ?? new Set();
-            return (
-              <div key={item.id} className={`card${index % 2 ? ' tonal' : ''}`}>
-                <div className="row-between" style={{ alignItems: 'flex-start', marginBottom: 16 }}>
-                  <div>
-                    <h3>{item.name}</h3>
-                    <p className="muted">{item.is_tax_tip ? 'Tax and tip' : item.quantity > 1 ? `Qty ${item.quantity}` : 'Item'}</p>
+        {mode === 'item' ? (
+          <>
+            <section className="list-stack" style={{ gap: 16 }}>
+              <h3>Assign Items</h3>
+              {receipt.items.map((item, index) => {
+                const assigned = assignments[item.id] ?? new Set();
+                return (
+                  <div key={item.id} className={`card${index % 2 ? ' tonal' : ''}`}>
+                    <div className="row-between" style={{ alignItems: 'flex-start', marginBottom: 16 }}>
+                      <div>
+                        <h3>{item.name}</h3>
+                        <p className="muted">{item.is_tax_tip ? 'Tax and tip' : item.quantity > 1 ? `Qty ${item.quantity}` : 'Item'}</p>
+                      </div>
+                      <h3>${getItemTotal(item).toFixed(2)}</h3>
+                    </div>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12 }}>
+                      {participants.map(p => {
+                        const isSelected = assigned.has(p.id);
+                        const splitAmt = isSelected && assigned.size > 0 ? getItemTotal(item) / assigned.size : null;
+                        return (
+                          <button
+                            key={p.id}
+                            className={`chip ${isSelected ? 'chip-selected' : 'chip-unselected'}`}
+                            onClick={() => toggleParticipant(item.id, p.id)}
+                          >
+                            {p.name.split(' ')[0]}
+                            {splitAmt !== null ? <span style={{ marginLeft: 8, opacity: 0.8 }}>${splitAmt.toFixed(2)}</span> : null}
+                            {isSelected ? <span style={{ marginLeft: 8 }}>x</span> : null}
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
-                  <h3>${getItemTotal(item).toFixed(2)}</h3>
+                );
+              })}
+            </section>
+
+            <section className="card" style={{ position: 'relative', overflow: 'hidden' }}>
+              <div style={{ position: 'absolute', top: 0, right: 0, width: 128, height: 128, borderRadius: '0 0 0 999px', background: 'rgba(0, 104, 95, 0.05)' }} />
+              <div style={{ position: 'relative' }}>
+                <h3 style={{ marginBottom: 22 }}>Current Breakdown</h3>
+                <div className="list-stack" style={{ gap: 20 }}>
+                  {participants.map(p => (
+                    <div className="row-between" key={p.id}>
+                      <div className="list-row">
+                        <div className="avatar soft" style={{ width: 32, height: 32 }}>
+                          {p.name[0].toUpperCase()}
+                        </div>
+                        <strong>{p.name}</strong>
+                      </div>
+                      <h3>${getParticipantTotal(p.id).toFixed(2)}</h3>
+                    </div>
+                  ))}
                 </div>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12 }}>
-                  {participants.map(p => {
-                    const isSelected = assigned.has(p.id);
-                    const splitAmt = isSelected && assigned.size > 1 ? getItemTotal(item) / assigned.size : null;
-                    return (
-                      <button
-                        key={p.id}
-                        className={`chip ${isSelected ? 'chip-selected' : 'chip-unselected'}`}
-                        onClick={() => toggleParticipant(item.id, p.id)}
-                      >
-                        {p.name.split(' ')[0]}
-                        {splitAmt !== null ? <span style={{ marginLeft: 8, opacity: 0.8 }}>${splitAmt.toFixed(2)}</span> : null}
-                        {isSelected ? <span style={{ marginLeft: 8 }}>x</span> : null}
-                      </button>
-                    );
-                  })}
+                <div className="total-line strong">
+                  <span>Unassigned</span>
+                  <span className={unassigned > 0 ? 'danger-text' : ''}>${unassigned.toFixed(2)}</span>
                 </div>
               </div>
-            );
-          })}
-        </section>
-
-        <section className="card" style={{ position: 'relative', overflow: 'hidden' }}>
-          <div style={{ position: 'absolute', top: 0, right: 0, width: 128, height: 128, borderRadius: '0 0 0 999px', background: 'rgba(0, 104, 95, 0.05)' }} />
-          <div style={{ position: 'relative' }}>
-            <h3 style={{ marginBottom: 22 }}>Current Breakdown</h3>
-            <div className="list-stack" style={{ gap: 20 }}>
-              {participants.map(p => (
-                <div className="row-between" key={p.id}>
+            </section>
+          </>
+        ) : (
+          <section className="card" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <div className="row-between">
+              <h3>Assign Percentages</h3>
+              <button className="btn btn-ghost" type="button" onClick={splitEvenly}>
+                Split evenly
+              </button>
+            </div>
+            {participants.map(p => {
+              const pct = parseFloat(percentages[p.id]) || 0;
+              const amount = total * (pct / 100);
+              return (
+                <div key={p.id} className="row-between">
                   <div className="list-row">
                     <div className="avatar soft" style={{ width: 32, height: 32 }}>
                       {p.name[0].toUpperCase()}
                     </div>
-                    <strong>{p.name}</strong>
+                    <div>
+                      <h3>{p.name}</h3>
+                      <p className="muted">{pct > 0 ? `$${amount.toFixed(2)}` : '$0.00'}</p>
+                    </div>
                   </div>
-                  <h3>${getParticipantTotal(p.id).toFixed(2)}</h3>
+                  <div className="list-row" style={{ gap: 8 }}>
+                    <input
+                      className="input"
+                      type="number"
+                      min="0"
+                      max="100"
+                      step="0.01"
+                      value={percentages[p.id] ?? ''}
+                      onChange={e => setParticipantPct(p.id, e.target.value)}
+                      style={{ width: 86, minHeight: 38, textAlign: 'right', paddingRight: 8 }}
+                      placeholder="0"
+                    />
+                    <span className="muted">%</span>
+                  </div>
                 </div>
-              ))}
-            </div>
+              );
+            })}
             <div className="total-line strong">
-              <span>Unassigned</span>
-              <span className={unassigned > 0 ? 'danger-text' : ''}>${unassigned.toFixed(2)}</span>
+              <span>Total Assigned</span>
+              <span className={Math.abs(pctTotal - 100) < 0.01 ? '' : 'danger-text'}>{pctTotal.toFixed(pctTotal % 1 === 0 ? 0 : 2)}%</span>
             </div>
-          </div>
-        </section>
+          </section>
+        )}
 
         <section className="card tonal" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-          <button className="btn btn-primary" onClick={handleFinalize} disabled={saving}>
+          <button className="btn btn-primary" onClick={handleFinalize} disabled={saving || !canSave}>
             {saving ? 'Saving' : 'Finalize Splits'}
           </button>
           <button className="btn btn-secondary" type="button" onClick={() => setShowCustomCharge(true)}>

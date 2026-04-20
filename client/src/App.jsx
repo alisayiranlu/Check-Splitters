@@ -10,6 +10,8 @@ import AssignSplits from './pages/AssignSplits';
 import SplitsOverview from './pages/SplitsOverview';
 import FinalReview from './pages/FinalReview';
 import PaymentMethods from './pages/PaymentMethods';
+import ReceiptDetail from './pages/ReceiptDetail';
+import Settlement from './pages/Settlement';
 
 export default function App() {
   return (
@@ -23,11 +25,13 @@ export default function App() {
           <Route path="/session/:id" element={<SessionLobby />} />
           <Route path="/session/:id/receipts" element={<Receipts />} />
           <Route path="/session/:id/receipts/add" element={<AddReceipt />} />
+          <Route path="/session/:id/receipts/:receiptId" element={<ReceiptDetail />} />
           <Route path="/session/:id/receipts/:receiptId/edit" element={<EditItems />} />
           <Route path="/session/:id/receipts/:receiptId/splits" element={<AssignSplits />} />
           <Route path="/session/:id/splits" element={<SplitsOverview />} />
           <Route path="/session/:id/review" element={<FinalReview />} />
           <Route path="/session/:id/payment-methods" element={<PaymentMethods />} />
+          <Route path="/session/:id/settle" element={<Settlement />} />
         </Routes>
       </BrowserRouter>
     </SessionProvider>
