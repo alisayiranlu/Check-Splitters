@@ -2,7 +2,7 @@ import { useNavigate } from 'react-router-dom';
 
 export default function SideMenu({ open, onClose, sessionId, participant, clearSession }) {
   const navigate = useNavigate();
-  const name = participant?.name || 'Julian Vane';
+  const name = participant?.name?.trim() || 'Guest';
 
   function goToPaymentSettings() {
     onClose();
