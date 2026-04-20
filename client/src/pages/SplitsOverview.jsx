@@ -15,7 +15,12 @@ export default function SplitsOverview() {
   }, [sessionId]);
 
   if (!review) {
-    return <div className="page"><div className="page-content">Loading</div><BottomNav sessionId={sessionId} /></div>;
+    return (
+      <div className="page">
+        <div className="page-content"><p className="muted">Loading...</p></div>
+        <BottomNav sessionId={sessionId} />
+      </div>
+    );
   }
 
   return (

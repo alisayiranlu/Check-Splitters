@@ -9,10 +9,12 @@ export default function Receipts() {
   const navigate = useNavigate();
   const { session, refreshSession } = useSession();
   const [receipts, setReceipts] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     refreshSession().then(s => {
       if (s) setReceipts(s.receipts ?? []);
+      setLoading(false);
     });
   }, [refreshSession]);
 
@@ -47,7 +49,9 @@ export default function Receipts() {
           <p className="muted">Review scanned and manually entered receipts before assigning splits.</p>
         </section>
 
-        {receipts.length === 0 ? (
+        {loading ? (
+          <p className="muted">Loading...</p>
+        ) : receipts.length === 0 ? (
           <section className="empty-state">
             <h3>No receipts yet</h3>
             <p>Add your first receipt to start splitting.</p>
@@ -64,9 +68,9 @@ export default function Receipts() {
                 role="button"
                 tabIndex={0}
                 style={{ textAlign: 'left', cursor: 'pointer' }}
-                onClick={() => navigate(`/session/${sessionId}/receipts/${receipt.id}/edit`)}
+                onClick={() => navigate(`/session/${sessionId}/receipts/${receipt.id}`)}
                 onKeyDown={e => {
-                  if (e.key === 'Enter') navigate(`/session/${sessionId}/receipts/${receipt.id}/edit`);
+                  if (e.key === 'Enter') navigate(`/session/${sessionId}/receipts/${receipt.id}`);
                 }}
               >
                 <div className="list-row">
