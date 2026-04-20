@@ -109,6 +109,14 @@ export default function AssignSplits() {
   const participants = session?.participants ?? [];
   const total = receipt?.items.reduce((s, i) => s + i.price * i.quantity, 0) ?? 0;
   const unassigned = getUnassignedTotal();
+  const receiptName = receipt?.name?.trim() ?? '';
+  const receiptNamePrefixMatch = receiptName.match(/^(.+?\bat)\s+(.+)$/i);
+  const receiptEyebrow = receiptNamePrefixMatch
+    ? receiptNamePrefixMatch[1]
+    : receipt?.scanned_at
+      ? 'Scanned receipt'
+      : 'Receipt';
+  const receiptTitle = receiptNamePrefixMatch ? receiptNamePrefixMatch[2] : (receiptName || 'Untitled receipt');
 
   if (!receipt) {
     return <div className="page"><div className="page-content" style={{ justifyContent: 'center' }}>Loading</div><BottomNav sessionId={sessionId} /></div>;
@@ -128,8 +136,8 @@ export default function AssignSplits() {
 
       <main className="page-content">
         <section style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-          <div className="eyebrow">Dinner at</div>
-          <h1>{receipt.name.replace(/^Dinner at\s+/i, '')}</h1>
+          <div className="eyebrow">{receiptEyebrow}</div>
+          <h1>{receiptTitle}</h1>
           <p className="muted">Total Bill</p>
           <div className="amount">${total.toFixed(2)}</div>
         </section>
