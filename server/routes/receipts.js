@@ -55,7 +55,22 @@ router.get('/:id', (req, res) => {
 
 router.post('/:id/items', (req, res) => {
   const { name, quantity, price, isTaxTip } = req.body;
-  if (!name || price === undefined) return res.status(400).json({ error: 'name and price are required' });
+
+  const normalizedName = typeof name === 'string' ? name.trim() : '';
+  const normalizedPrice = Number(price);
+  const normalizedQuantity = quantity === undefined ? 1 : Number(quantity);
+
+  if (!normalizedName) {
+    return res.status(400).json({ error: 'name is required' });
+  }
+
+  if (!Number.isFinite(normalizedPrice) || normalizedPrice < 0) {
+    return res.status(400).json({ error: 'price must be a non-negative number' });
+  }
+
+  if (!Number.isInteger(normalizedQuantity) || normalizedQuantity <= 0) {
+    return res.status(400).json({ error: 'quantity must be a positive integer' });
+  }
 
   const receipt = db.prepare('SELECT * FROM receipts WHERE id = ?').get(req.params.id);
   if (!receipt) return res.status(404).json({ error: 'Receipt not found' });
@@ -63,7 +78,7 @@ router.post('/:id/items', (req, res) => {
   const itemId = uuidv4();
   db.prepare(
     'INSERT INTO items (id, receipt_id, name, quantity, price, is_tax_tip, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)'
-  ).run(itemId, receipt.id, name, quantity || 1, price, isTaxTip ? 1 : 0, Date.now());
+  ).run(itemId, receipt.id, normalizedName, normalizedQuantity, normalizedPrice, isTaxTip ? 1 : 0, Date.now());
 
   const items = db.prepare('SELECT * FROM items WHERE receipt_id = ? ORDER BY created_at ASC').all(receipt.id);
   const itemsWithSplits = items.map(item => {
