@@ -1,0 +1,66 @@
+Check Splitters
+===============
+
+A web app for splitting shared expenses across a group.
+
+
+Requirements
+------------
+
+Node.js  22+
+npm      10+
+
+
+Dependencies
+------------
+
+Server
+  express         4.18
+  better-sqlite3  9.4
+  cors            2.8
+  uuid            9.0
+
+Client
+  react           19
+  react-dom       19
+  react-router-dom  7
+  vite            8
+
+
+Setup
+-----
+
+Install dependencies for the server and client:
+
+  cd server && npm install
+  cd ../client && npm install
+
+
+Running locally
+---------------
+
+Start the server (runs on port 3001):
+
+  cd server
+  npm start
+
+Start the client in a separate terminal (runs on port 5173):
+
+  cd client
+  npm run dev
+
+Open http://localhost:5173 in your browser.
+
+
+Testing with multiple users
+---------------------------
+
+To simulate multiple users on the same machine, use separate browser contexts
+that do not share localStorage:
+
+  - Regular window (user 1)
+  - Incognito window (user 2)
+  - A different browser entirely (user 3)
+
+Create a session in one window, then join using the 6-digit invite code
+in the others.
