@@ -27,7 +27,7 @@ export default function FinalReview() {
   }
 
   const subtotal = review.participants.reduce((s, p) => s + p.total, 0);
-  const service = review.grandTotal > subtotal ? review.grandTotal - subtotal : 0;
+  const service = typeof review.service === 'number' ? review.service : 0;
   const receipts = review.receipts ?? [];
 
   return (
