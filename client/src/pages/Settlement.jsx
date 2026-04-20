@@ -1,17 +1,31 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { api } from '../api';
-import { useSession } from '../context/SessionContext';
+import { useSession } from '../context/useSession';
 
 export default function Settlement() {
   const { id: sessionId } = useParams();
   const navigate = useNavigate();
   const { session } = useSession();
   const [review, setReview] = useState(null);
+  const [error, setError] = useState('');
 
   useEffect(() => {
-    api.getReview(sessionId).then(setReview);
+    api
+      .getReview(sessionId)
+      .then(setReview)
+      .catch(() => setError('Unable to load settlement details.'));
   }, [sessionId]);
+
+  if (error) {
+    return (
+      <div className="page">
+        <div className="page-content" style={{ alignItems: 'center', justifyContent: 'center' }}>
+          <p className="muted">{error}</p>
+        </div>
+      </div>
+    );
+  }
 
   if (!review) return (
     <div className="page">

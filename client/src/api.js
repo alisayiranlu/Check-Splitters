@@ -36,6 +36,9 @@ export const api = {
   updateItems: (receiptId, items) =>
     request('PUT', `/receipts/${receiptId}/items`, { items }),
 
+  addReceiptItem: (receiptId, item) =>
+    request('POST', `/receipts/${receiptId}/items`, item),
+
   updateSplits: (receiptId, splits) =>
     request('PUT', `/receipts/${receiptId}/splits`, { splits }),
 

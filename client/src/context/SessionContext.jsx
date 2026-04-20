@@ -1,64 +1,69 @@
-import { createContext, useContext, useState, useEffect } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { api } from '../api';
+import { SessionContext } from './SessionContextCore';
 
-const SessionContext = createContext(null);
+function hasStoredSession() {
+  return Boolean(localStorage.getItem('cs_session') && localStorage.getItem('cs_participant'));
+}
 
 export function SessionProvider({ children }) {
   const [session, setSession] = useState(null);
   const [participant, setParticipant] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(hasStoredSession);
+  const sessionId = session?.id;
 
-  // Restore session from localStorage on mount
   useEffect(() => {
     const stored = localStorage.getItem('cs_session');
     const storedParticipant = localStorage.getItem('cs_participant');
-    if (stored && storedParticipant) {
-      const s = JSON.parse(stored);
-      const p = JSON.parse(storedParticipant);
-      // Re-fetch to get fresh data
-      api.getSession(s.id)
-        .then(fresh => {
-          setSession(fresh);
-          setParticipant(p);
-        })
-        .catch(() => {
-          localStorage.removeItem('cs_session');
-          localStorage.removeItem('cs_participant');
-        })
-        .finally(() => setLoading(false));
-    } else {
-      setLoading(false);
-    }
+    if (!stored || !storedParticipant) return;
+
+    const s = JSON.parse(stored);
+    const p = JSON.parse(storedParticipant);
+    api.getSession(s.id)
+      .then(fresh => {
+        setSession(fresh);
+        setParticipant(p);
+      })
+      .catch(() => {
+        localStorage.removeItem('cs_session');
+        localStorage.removeItem('cs_participant');
+      })
+      .finally(() => setLoading(false));
   }, []);
 
-  function saveSession(s, p) {
+  const saveSession = useCallback((s, p) => {
     setSession(s);
     setParticipant(p);
     localStorage.setItem('cs_session', JSON.stringify({ id: s.id, code: s.code, name: s.name }));
     localStorage.setItem('cs_participant', JSON.stringify(p));
-  }
+  }, []);
 
-  function clearSession() {
+  const clearSession = useCallback(() => {
     setSession(null);
     setParticipant(null);
     localStorage.removeItem('cs_session');
     localStorage.removeItem('cs_participant');
-  }
+  }, []);
 
-  async function refreshSession() {
-    if (!session) return;
-    const fresh = await api.getSession(session.id);
+  const refreshSession = useCallback(async () => {
+    if (!sessionId) return null;
+    const fresh = await api.getSession(sessionId);
     setSession(fresh);
     return fresh;
-  }
+  }, [sessionId]);
+
+  const value = useMemo(() => ({
+    session,
+    participant,
+    loading,
+    saveSession,
+    clearSession,
+    refreshSession,
+  }), [session, participant, loading, saveSession, clearSession, refreshSession]);
 
   return (
-    <SessionContext.Provider value={{ session, participant, loading, saveSession, clearSession, refreshSession }}>
+    <SessionContext.Provider value={value}>
       {children}
     </SessionContext.Provider>
   );
-}
-
-export function useSession() {
-  return useContext(SessionContext);
 }

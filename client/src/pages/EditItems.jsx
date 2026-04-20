@@ -12,7 +12,11 @@ export default function EditItems() {
   useEffect(() => {
     api.getReceipt(receiptId).then(r => {
       setReceipt(r);
-      setItems(r.items.map(i => ({ ...i, price: i.price.toFixed(2) })));
+      setItems(r.items.map(i => ({
+        ...i,
+        price: i.price.toFixed(2),
+        isTaxTip: Boolean(i.isTaxTip ?? i.is_tax_tip),
+      })));
     });
   }, [receiptId]);
 
@@ -35,6 +39,7 @@ export default function EditItems() {
         ...i,
         price: parseFloat(i.price) || 0,
         quantity: parseInt(i.quantity) || 1,
+        isTaxTip: Boolean(i.isTaxTip ?? i.is_tax_tip),
       })));
       navigate(`/session/${sessionId}/receipts/${receiptId}/splits`);
     } finally {
@@ -44,87 +49,89 @@ export default function EditItems() {
 
   const total = items.reduce((sum, i) => sum + (parseFloat(i.price) || 0) * (parseInt(i.quantity) || 1), 0);
 
-  if (!receipt) return <div className="page"><div className="page-content" style={{ alignItems: 'center', justifyContent: 'center' }}>Loading...</div></div>;
+  if (!receipt) {
+    return <div className="page no-nav"><div className="page-content" style={{ justifyContent: 'center' }}>Loading</div></div>;
+  }
 
   return (
-    <div className="page">
-      <div className="topbar">
-        <button className="topbar-back" onClick={() => navigate(-1)}>
+    <div className="page no-nav">
+      <header className="topbar">
+        <button className="topbar-back" onClick={() => navigate(`/session/${sessionId}/receipts`)} aria-label="Back">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            <polyline points="15 18 9 12 15 6"/>
+            <polyline points="15 18 9 12 15 6" />
           </svg>
         </button>
         <span className="topbar-title">Edit Items</span>
-        <button
-          onClick={handleSave}
-          disabled={saving}
-          style={{ background: 'var(--primary)', color: '#fff', border: 'none', borderRadius: 8, padding: '6px 14px', fontWeight: 600, fontSize: '0.875rem', cursor: 'pointer' }}
-        >
-          {saving ? '...' : 'Done Editing'}
+        <button className="btn btn-primary" onClick={handleSave} disabled={saving} style={{ width: 'auto', minHeight: 34, padding: '6px 14px', fontSize: '0.875rem' }}>
+          {saving ? 'Saving' : 'Done Editing'}
         </button>
-      </div>
+      </header>
 
-      <div className="page-content">
-        <div>
-          <h2>{receipt.name}</h2>
-          {receipt.scanned_at && (
-            <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: 4 }}>
-              Scanned via Camera · {receipt.scanned_at}
-            </div>
-          )}
-        </div>
+      <main className="page-content" style={{ paddingBottom: 40 }}>
+        <section style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <div className="eyebrow">{receipt.scanned_at ? `Scanned ${receipt.scanned_at}` : 'Manual Receipt'}</div>
+          <h1>{receipt.name}</h1>
+          <p className="muted">Receipt Total</p>
+          <div className="amount">${total.toFixed(2)}</div>
+        </section>
 
-        <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
-          <span style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>Receipt Total</span>
-          <span className="amount">${total.toFixed(2)}</span>
-        </div>
-
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <section className="list-stack" style={{ gap: 16 }}>
           {items.map((item, idx) => (
-            <div key={idx} className="card" style={{ padding: '14px 16px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-                <input
-                  className="input"
-                  value={item.name}
-                  onChange={e => updateItem(idx, 'name', e.target.value)}
-                  placeholder="Item name"
-                  style={{ flex: 1, padding: '8px 10px' }}
-                />
-                <button className="icon-btn" onClick={() => removeItem(idx)} style={{ color: 'var(--danger)' }}>
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-                    <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
-                    <path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/>
-                  </svg>
-                </button>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Qty:</span>
-                <button className="icon-btn" onClick={() => updateItem(idx, 'quantity', Math.max(1, (parseInt(item.quantity) || 1) - 1))}>−</button>
-                <span style={{ fontWeight: 600, minWidth: 20, textAlign: 'center' }}>{item.quantity}</span>
-                <button className="icon-btn" onClick={() => updateItem(idx, 'quantity', (parseInt(item.quantity) || 1) + 1)}>+</button>
-                <span style={{ flex: 1 }} />
-                <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Price: $</span>
-                <input
-                  className="input"
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={item.price}
-                  onChange={e => updateItem(idx, 'price', e.target.value)}
-                  style={{ width: 80, padding: '6px 8px', textAlign: 'right' }}
-                />
+            <div key={idx} className={`card${idx % 2 ? ' tonal' : ''}`} style={{ padding: 18 }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                <div className="row-between">
+                  <input
+                    className="input"
+                    value={item.name}
+                    onChange={e => updateItem(idx, 'name', e.target.value)}
+                    placeholder="Item name"
+                    style={{ flex: 1 }}
+                  />
+                  <button className="icon-btn" onClick={() => removeItem(idx)} aria-label="Remove item" style={{ color: 'var(--danger)' }}>
+                    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                      <polyline points="3 6 5 6 21 6" />
+                      <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+                    </svg>
+                  </button>
+                </div>
+
+                <div className="row-between">
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span className="muted">Qty</span>
+                    <button className="chip chip-unselected" type="button" onClick={() => updateItem(idx, 'quantity', Math.max(1, (parseInt(item.quantity) || 1) - 1))} aria-label="Decrease quantity">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round">
+                        <line x1="5" y1="12" x2="19" y2="12" />
+                      </svg>
+                    </button>
+                    <strong>{item.quantity}</strong>
+                    <button className="chip chip-unselected" type="button" onClick={() => updateItem(idx, 'quantity', (parseInt(item.quantity) || 1) + 1)}>+</button>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <span className="muted">$</span>
+                    <input
+                      className="input"
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={item.price}
+                      onChange={e => updateItem(idx, 'price', e.target.value)}
+                      style={{ width: 96, textAlign: 'right' }}
+                    />
+                  </div>
+                </div>
               </div>
             </div>
           ))}
-        </div>
+        </section>
 
-        <button className="btn btn-outline" onClick={addItem}>
+        <button className="btn btn-secondary" onClick={addItem}>
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-            <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+            <line x1="12" y1="5" x2="12" y2="19" />
+            <line x1="5" y1="12" x2="19" y2="12" />
           </svg>
           Add Manual Item
         </button>
-      </div>
+      </main>
     </div>
   );
 }

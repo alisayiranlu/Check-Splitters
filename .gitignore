@@ -4,3 +4,4 @@ client/dist/
 server/data/
 *.db
 .env
+.playwright-cli/
