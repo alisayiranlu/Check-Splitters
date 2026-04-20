@@ -16,7 +16,7 @@ export default function CreateSession({ initialMode = 'create' }) {
           </svg>
         </button>
         <span className="topbar-title">Create or Join Session</span>
-        <div className="avatar" style={{ width: 32, height: 32 }}>J</div>
+        <div className="avatar" style={{ width: 32, height: 32 }}>CS</div>
       </header>
 
       <main className="page-content">
