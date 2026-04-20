@@ -67,7 +67,7 @@ export default function AssignSplits() {
   const pctValid = Math.abs(pctTotal - 100) < 0.01;
 
   function setParticipantPct(participantId, value) {
-    if (value === '' || (/^\d{0,3}(\.\d{0,2})?$/.test(value) && parseFloat(value) <= 100)) {
+    if (value === '' || (/^\d{0,3}(\.\d{1,2})?$/.test(value) && parseFloat(value) <= 100)) {
       setPercentages(prev => ({ ...prev, [participantId]: value }));
     }
   }
