@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useSession } from '../context/useSession';
 import BottomNav from '../components/BottomNav';
@@ -6,6 +7,16 @@ export default function PaymentMethods() {
   const { id: sessionId } = useParams();
   const navigate = useNavigate();
   const { participant } = useSession();
+  const storageKey = `cs_payment_wallet_${sessionId}`;
+  const [selectedWallet, setSelectedWallet] = useState(() => localStorage.getItem(storageKey) || 'apple');
+
+  useEffect(() => {
+    localStorage.setItem(storageKey, selectedWallet);
+  }, [storageKey, selectedWallet]);
+
+  function selectWallet(wallet) {
+    setSelectedWallet(wallet);
+  }
 
   return (
     <div className="page">
@@ -36,7 +47,11 @@ export default function PaymentMethods() {
 
         <section className="list-stack">
           <h3 className="eyebrow">Digital Wallets</h3>
-          <div className="card">
+          <button
+            className={`card wallet-card${selectedWallet === 'apple' ? ' selected' : ' tonal'}`}
+            type="button"
+            onClick={() => selectWallet('apple')}
+          >
             <div className="row-between">
               <div className="list-row">
                 <div className="method-icon">
@@ -44,14 +59,18 @@ export default function PaymentMethods() {
                 </div>
                 <div>
                   <h3>Apple Pay</h3>
-                  <p className="muted">Default for splitting bills</p>
+                  <p className="muted">{selectedWallet === 'apple' ? 'Using Apple Pay for requests' : 'Tap to use Apple Pay'}</p>
                 </div>
               </div>
-              <span className="badge">Default</span>
+              <span className="badge">{selectedWallet === 'apple' ? 'Selected' : 'Use'}</span>
             </div>
-          </div>
+          </button>
 
-          <div className="card tonal">
+          <button
+            className={`card wallet-card${selectedWallet === 'google' ? ' selected' : ' tonal'}`}
+            type="button"
+            onClick={() => selectWallet('google')}
+          >
             <div className="row-between">
               <div className="list-row">
                 <div className="method-icon" style={{ background: 'var(--surface-high)', color: 'var(--text)' }}>
@@ -59,18 +78,12 @@ export default function PaymentMethods() {
                 </div>
                 <div>
                   <h3>Google Pay</h3>
-                  <p className="muted">Tap to set as default</p>
+                  <p className="muted">{selectedWallet === 'google' ? 'Using Google Pay for requests' : 'Tap to use Google Pay'}</p>
                 </div>
               </div>
-              <button className="icon-btn" type="button" aria-label="More options">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-                  <circle cx="12" cy="5" r="1.8" />
-                  <circle cx="12" cy="12" r="1.8" />
-                  <circle cx="12" cy="19" r="1.8" />
-                </svg>
-              </button>
+              <span className="badge">{selectedWallet === 'google' ? 'Selected' : 'Use'}</span>
             </div>
-          </div>
+          </button>
         </section>
 
         <section className="list-stack">

@@ -501,6 +501,23 @@ label {
   text-align: left;
 }
 
+.wallet-card {
+  width: 100%;
+  border: 0;
+  color: var(--text);
+  text-align: left;
+}
+
+.wallet-card.selected {
+  background: var(--surface-lowest);
+  box-shadow: inset 0 0 0 2px rgba(0, 104, 95, 0.22);
+}
+
+.wallet-card.selected .method-icon {
+  background: rgba(0, 104, 95, 0.12);
+  color: var(--primary);
+}
+
 .method-icon {
   display: inline-flex;
   width: 48px;
@@ -638,4 +655,14 @@ label {
 .total-line.strong span:last-child {
   color: var(--primary);
   font-size: 1.25rem;
+}
+
+.amount-danger,
+.total-line.strong span.amount-danger:last-child {
+  color: var(--danger);
+}
+
+.amount-success,
+.total-line.strong span.amount-success:last-child {
+  color: var(--primary);
 }
