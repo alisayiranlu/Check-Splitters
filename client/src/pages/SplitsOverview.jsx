@@ -3,12 +3,14 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { api } from '../api';
 import { useSession } from '../context/useSession';
 import BottomNav from '../components/BottomNav';
+import ConfirmationToast from '../components/ConfirmationToast';
 
 export default function SplitsOverview() {
   const { id: sessionId } = useParams();
   const navigate = useNavigate();
   const { session } = useSession();
   const [review, setReview] = useState(null);
+  const [warning, setWarning] = useState('');
 
   useEffect(() => {
     api.getReview(sessionId).then(data => {
@@ -20,6 +22,20 @@ export default function SplitsOverview() {
     });
   }, [navigate, sessionId]);
 
+  useEffect(() => {
+    if (!warning) return undefined;
+    const timer = setTimeout(() => setWarning(''), 1900);
+    return () => clearTimeout(timer);
+  }, [warning]);
+
+  function continueToReview() {
+    if (review?.hasUnassignedCash) {
+      setWarning('Assign all cash before Final Review');
+      return;
+    }
+    navigate(`/session/${sessionId}/review`);
+  }
+
   if (!review) {
     return (
       <div className="page">
@@ -28,6 +44,9 @@ export default function SplitsOverview() {
       </div>
     );
   }
+
+  const receipts = (review.receipts ?? []).filter(receipt => Number(receipt.item_count ?? 0) > 0);
+  const hasUnassignedCash = Boolean(review.hasUnassignedCash);
 
   return (
     <div className="page">
@@ -45,31 +64,66 @@ export default function SplitsOverview() {
         <section style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           <div className="eyebrow">{session?.name ?? 'Ledger'}</div>
           <h1>Who owes what</h1>
-          <p className="muted">Review each participant total before the final confirmation.</p>
+          <p className="muted">Review receipt by receipt, then open any receipt to adjust its split.</p>
         </section>
 
-        <section className="card">
-          <div className="list-stack">
-            {review.participants.length === 0 ? (
-              <p className="muted">No splits assigned yet.</p>
-            ) : (
-              review.participants.map((p, index) => (
-                <div key={p.id} className="row-between">
-                  <div className="list-row">
-                    <div className={`avatar${index === 1 ? ' soft' : ''}`} style={{ background: index === 2 ? 'var(--warm)' : undefined }}>
-                      {p.name[0].toUpperCase()}
-                    </div>
-                    <div>
-                      <h3>{p.name}</h3>
-                      <p className="muted">{p.itemCount} item{p.itemCount === 1 ? '' : 's'}</p>
-                    </div>
+        <section className="list-stack">
+          {receipts.map((receipt, index) => (
+            <button
+              key={receipt.id}
+              className={`card split-receipt-card${index % 2 ? ' tonal' : ''}`}
+              type="button"
+              onClick={() => navigate(`/session/${sessionId}/receipts/${receipt.id}/splits`)}
+            >
+              <div className="row-between" style={{ alignItems: 'flex-start' }}>
+                <div className="list-row">
+                  <div className="receipt-thumb">REC</div>
+                  <div>
+                    <h3>{receipt.name}</h3>
+                    <p className="muted">
+                      {receipt.item_count} item{receipt.item_count === 1 ? '' : 's'} total
+                    </p>
                   </div>
-                  <h3>${p.total.toFixed(2)}</h3>
                 </div>
-              ))
-            )}
-          </div>
+                <div style={{ textAlign: 'right' }}>
+                  <p className="muted">Assigned</p>
+                  <h3>${Number(receipt.splitTotal ?? 0).toFixed(2)}</h3>
+                  {Number(receipt.unassignedTotal ?? 0) > 0 && (
+                    <p className="danger-text" style={{ marginTop: 4, fontSize: '0.8125rem', fontWeight: 800 }}>
+                      ${Number(receipt.unassignedTotal ?? 0).toFixed(2)} unassigned
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              <div className="receipt-split-list">
+                {(receipt.participants ?? []).map((p, participantIndex) => (
+                  <div key={p.id} className="row-between">
+                    <div className="list-row">
+                      <div className={`avatar${participantIndex === 1 ? ' soft' : ''}`} style={{ width: 32, height: 32, background: participantIndex === 2 ? 'var(--warm)' : p.avatar_color }}>
+                        {initials(p.name)}
+                      </div>
+                      <div>
+                        <strong>{p.name}</strong>
+                        <p className="muted">{p.itemCount} item{p.itemCount === 1 ? '' : 's'}</p>
+                      </div>
+                    </div>
+                    <strong>${p.total.toFixed(2)}</strong>
+                  </div>
+                ))}
+              </div>
+
+              <span className="split-edit-hint">Edit splits</span>
+            </button>
+          ))}
         </section>
+
+        {hasUnassignedCash && (
+          <section className="validation-note">
+            <strong>Finish assigning cash</strong>
+            <p>Final Review opens after every receipt has $0 unassigned.</p>
+          </section>
+        )}
 
         <section className="card tonal">
           <div className="row-between">
@@ -81,12 +135,23 @@ export default function SplitsOverview() {
           </div>
         </section>
 
-        <button className="btn btn-primary" onClick={() => navigate(`/session/${sessionId}/review`)}>
+        <button className={`btn btn-primary${hasUnassignedCash ? ' blocked' : ''}`} onClick={continueToReview} aria-disabled={hasUnassignedCash}>
           Continue to Final Review
         </button>
       </main>
 
       <BottomNav sessionId={sessionId} />
+      {warning && <ConfirmationToast message={warning} status="warning" />}
     </div>
   );
+}
+
+function initials(name) {
+  return name
+    .split(' ')
+    .filter(Boolean)
+    .slice(0, 2)
+    .map(part => part[0])
+    .join('')
+    .toUpperCase();
 }

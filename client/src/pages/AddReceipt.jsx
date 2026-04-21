@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useSession } from '../context/useSession';
 import { api } from '../api';
@@ -18,36 +18,102 @@ const MOCK_SCAN = {
 export default function AddReceipt() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { session } = useSession();
+  const { session, participant } = useSession();
+  const isAdmin = Boolean(participant?.is_admin);
   const fileRef = useRef(null);
+  const scanTimeoutRef = useRef(null);
   const [scanning, setScanning] = useState(false);
   const [previewUrl, setPreviewUrl] = useState(null);
 
+  useEffect(() => {
+    if (participant && !isAdmin) {
+      navigate(`/session/${id}/receipts`, { replace: true });
+    }
+  }, [id, isAdmin, navigate, participant]);
+
+  useEffect(() => {
+    return () => {
+      if (scanTimeoutRef.current) {
+        clearTimeout(scanTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (previewUrl) {
+        URL.revokeObjectURL(previewUrl);
+      }
+    };
+  }, [previewUrl]);
+
   function handleUploadClick() {
+    if (!isAdmin) return;
     fileRef.current?.click();
   }
 
   function handleFileChange(e) {
+    if (!isAdmin) return;
+
     const file = e.target.files?.[0];
     if (!file) return;
-    setPreviewUrl(URL.createObjectURL(file));
+
+    const nextPreviewUrl = URL.createObjectURL(file);
+    setPreviewUrl(nextPreviewUrl);
     setScanning(true);
-    setTimeout(async () => {
-      const receipt = await api.addReceipt(id, MOCK_SCAN.name, MOCK_SCAN.items, MOCK_SCAN.scannedAt);
-      navigate(`/session/${id}/receipts/${receipt.id}/edit`);
+    e.target.value = '';
+
+    if (scanTimeoutRef.current) {
+      clearTimeout(scanTimeoutRef.current);
+    }
+
+    scanTimeoutRef.current = setTimeout(async () => {
+      try {
+        const receiptName = session?.name ? `Dinner at ${session.name}` : MOCK_SCAN.name;
+        const receipt = await api.addReceipt(
+          id,
+          receiptName,
+          MOCK_SCAN.items,
+          MOCK_SCAN.scannedAt,
+          participant?.id
+        );
+        navigate(`/session/${id}/receipts/${receipt.id}/edit`);
+      } catch (error) {
+        console.error('Failed to add receipt:', error);
+      } finally {
+        scanTimeoutRef.current = null;
+        setScanning(false);
+      }
     }, 2800);
   }
 
-  async function handleManual() {
-    const receipt = await api.addReceipt(id, 'New Receipt', [], null);
+  async function handleUpload() {
+    if (!isAdmin) return;
+
+    const receiptName = session?.name ? `Dinner at ${session.name}` : 'Scanned Receipt';
+    const receipt = await api.addReceipt(
+      id,
+      receiptName,
+      MOCK_SCAN.items,
+      new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+      participant.id
+    );
     navigate(`/session/${id}/receipts/${receipt.id}/edit`);
   }
+
+  async function handleManual() {
+    if (!isAdmin || !participant) return;
+
+    const receipt = await api.addReceipt(id, 'New Receipt', [], null, participant.id);
+    navigate(`/session/${id}/receipts/${receipt.id}/edit`);
+  }
+
+  if (participant && !isAdmin) return null;
 
   if (scanning) {
     return (
       <div className="modal-route">
         <div className="sheet" style={{ alignItems: 'center', gap: 0, padding: 0, overflow: 'hidden' }}>
-          {/* Receipt image preview with scanning line */}
           <div style={{ position: 'relative', width: '100%', height: 340, overflow: 'hidden', background: '#111' }}>
             {previewUrl && (
               <img
@@ -56,14 +122,12 @@ export default function AddReceipt() {
                 style={{ width: '100%', height: '100%', objectFit: 'cover', opacity: 0.85 }}
               />
             )}
-            {/* Scanning line */}
             <div style={{
               position: 'absolute', left: 0, right: 0, height: 2,
               background: 'linear-gradient(90deg, transparent, var(--primary), transparent)',
               boxShadow: '0 0 12px 4px rgba(0,131,120,0.6)',
               animation: 'scanLine 1.4s ease-in-out infinite',
             }} />
-            {/* Corner markers */}
             {[['top','left'],['top','right'],['bottom','left'],['bottom','right']].map(([v,h]) => (
               <div key={v+h} style={{
                 position: 'absolute', [v]: 16, [h]: 16,
@@ -77,9 +141,8 @@ export default function AddReceipt() {
           </div>
 
           <div style={{ padding: '28px 24px', width: '100%', display: 'flex', flexDirection: 'column', gap: 8 }}>
-            <h2>Scanning receipt…</h2>
+            <h2>Scanning receipt...</h2>
             <p className="muted">Reading items and prices. This will only take a moment.</p>
-            {/* Progress bar */}
             <div style={{ marginTop: 8, height: 4, borderRadius: 999, background: 'var(--surface-high)', overflow: 'hidden' }}>
               <div style={{
                 height: '100%', borderRadius: 999,
@@ -94,7 +157,6 @@ export default function AddReceipt() {
           @keyframes scanLine {
             0%   { top: 0%; }
             50%  { top: calc(100% - 2px); }
-            100% { top: 0%; }
           }
           @keyframes scanProgress {
             0%   { width: 0%; }

@@ -33,6 +33,8 @@ export default function EditItems() {
   }
 
   async function handleSave() {
+    if (hasZeroValueItem) return;
+
     setSaving(true);
     try {
       await api.updateItems(receiptId, items.map(i => ({
@@ -48,6 +50,7 @@ export default function EditItems() {
   }
 
   const total = items.reduce((sum, i) => sum + (parseFloat(i.price) || 0) * (parseInt(i.quantity) || 1), 0);
+  const hasZeroValueItem = items.some(item => getItemTotal(item) <= 0);
 
   if (!receipt) {
     return <div className="page no-nav"><div className="page-content" style={{ justifyContent: 'center' }}>Loading</div></div>;
@@ -62,7 +65,7 @@ export default function EditItems() {
           </svg>
         </button>
         <span className="topbar-title">Edit Items</span>
-        <button className="btn btn-primary" onClick={handleSave} disabled={saving} style={{ width: 'auto', minHeight: 34, padding: '6px 14px', fontSize: '0.875rem' }}>
+        <button className="btn btn-primary" onClick={handleSave} disabled={saving || hasZeroValueItem} style={{ width: 'auto', minHeight: 34, padding: '6px 14px', fontSize: '0.875rem' }}>
           {saving ? 'Saving' : 'Done Editing'}
         </button>
       </header>
@@ -76,52 +79,66 @@ export default function EditItems() {
         </section>
 
         <section className="list-stack" style={{ gap: 16 }}>
-          {items.map((item, idx) => (
-            <div key={idx} className={`card${idx % 2 ? ' tonal' : ''}`} style={{ padding: 18 }}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                <div className="row-between">
-                  <input
-                    className="input"
-                    value={item.name}
-                    onChange={e => updateItem(idx, 'name', e.target.value)}
-                    placeholder="Item name"
-                    style={{ flex: 1 }}
-                  />
-                  <button className="icon-btn" onClick={() => removeItem(idx)} aria-label="Remove item" style={{ color: 'var(--danger)' }}>
-                    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-                      <polyline points="3 6 5 6 21 6" />
-                      <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
-                    </svg>
-                  </button>
-                </div>
+          {items.map((item, idx) => {
+            const zeroValueItem = getItemTotal(item) <= 0;
 
-                <div className="row-between">
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <span className="muted">Qty</span>
-                    <button className="chip chip-unselected" type="button" onClick={() => updateItem(idx, 'quantity', Math.max(1, (parseInt(item.quantity) || 1) - 1))} aria-label="Decrease quantity">
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round">
-                        <line x1="5" y1="12" x2="19" y2="12" />
-                      </svg>
-                    </button>
-                    <strong>{item.quantity}</strong>
-                    <button className="chip chip-unselected" type="button" onClick={() => updateItem(idx, 'quantity', (parseInt(item.quantity) || 1) + 1)}>+</button>
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <span className="muted">$</span>
+            return (
+              <div key={idx} className={`card${idx % 2 ? ' tonal' : ''}`} style={{ padding: 18 }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                  <div className="row-between">
                     <input
                       className="input"
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      value={item.price}
-                      onChange={e => updateItem(idx, 'price', e.target.value)}
-                      style={{ width: 96, textAlign: 'right' }}
+                      value={item.name}
+                      onChange={e => updateItem(idx, 'name', e.target.value)}
+                      placeholder="Item name"
+                      style={{ flex: 1 }}
                     />
+                    <button className="icon-btn" onClick={() => removeItem(idx)} aria-label="Remove item" style={{ color: 'var(--danger)' }}>
+                      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                        <polyline points="3 6 5 6 21 6" />
+                        <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+                      </svg>
+                    </button>
+                  </div>
+
+                  <div className="row-between">
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <span className="muted">Qty</span>
+                      <button className="chip chip-unselected" type="button" onClick={() => updateItem(idx, 'quantity', Math.max(1, (parseInt(item.quantity) || 1) - 1))} aria-label="Decrease quantity">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round">
+                          <line x1="5" y1="12" x2="19" y2="12" />
+                        </svg>
+                      </button>
+                      <strong>{item.quantity}</strong>
+                      <button className="chip chip-unselected" type="button" onClick={() => updateItem(idx, 'quantity', (parseInt(item.quantity) || 1) + 1)}>+</button>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <span className="muted">$</span>
+                      <input
+                        className={`input${zeroValueItem ? ' input-warning' : ''}`}
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={item.price}
+                        onChange={e => updateItem(idx, 'price', e.target.value)}
+                        style={{ width: 96, textAlign: 'right' }}
+                      />
+                      {zeroValueItem && (
+                        <span
+                          className="item-price-warning"
+                          aria-label="Price must be more than $0"
+                          data-tooltip="Price must be more than $0"
+                          title="Price must be more than $0"
+                        >
+                          !
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </section>
 
         <button className="btn btn-secondary" onClick={addItem}>
@@ -134,4 +151,8 @@ export default function EditItems() {
       </main>
     </div>
   );
+}
+
+function getItemTotal(item) {
+  return (parseFloat(item.price) || 0) * (parseInt(item.quantity) || 1);
 }

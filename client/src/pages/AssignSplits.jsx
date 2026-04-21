@@ -14,7 +14,9 @@ export default function AssignSplits() {
   const [percentages, setPercentages] = useState({});
   const [saving, setSaving] = useState(false);
   const [showCustomCharge, setShowCustomCharge] = useState(false);
-  const [customName, setCustomName] = useState('Custom Tip');
+  const [customName, setCustomName] = useState('Tip');
+  const [customChargeMode, setCustomChargeMode] = useState('percent');
+  const [customPercent, setCustomPercent] = useState('20');
   const [customAmount, setCustomAmount] = useState('');
   const [savingCustomCharge, setSavingCustomCharge] = useState(false);
   const participants = session?.participants ?? [];
@@ -23,6 +25,10 @@ export default function AssignSplits() {
     refreshSession();
     api.getReceipt(receiptId).then(r => {
       if ((r.items ?? []).length === 0) {
+        navigate(`/session/${sessionId}/receipts/${receiptId}/edit`, { replace: true });
+        return;
+      }
+      if ((r.items ?? []).some(item => getItemTotal(item) <= 0)) {
         navigate(`/session/${sessionId}/receipts/${receiptId}/edit`, { replace: true });
         return;
       }
@@ -46,6 +52,10 @@ export default function AssignSplits() {
 
   function getItemTotal(item) {
     return item.price * item.quantity;
+  }
+
+  function isTaxTipItem(item) {
+    return Boolean(item.is_tax_tip ?? item.isTaxTip);
   }
 
   function getSplitAmount(item, participantId) {
@@ -90,6 +100,8 @@ export default function AssignSplits() {
   }
 
   async function handleFinalize() {
+    if (receipt.items.some(item => getItemTotal(item) <= 0)) return;
+
     setSaving(true);
     try {
       const splits = mode === 'item'
@@ -123,7 +135,7 @@ export default function AssignSplits() {
 
   async function handleAddCustomCharge(e) {
     e.preventDefault();
-    const amount = parseFloat(customAmount);
+    const amount = customChargeAmount;
     if (!customName.trim() || !Number.isFinite(amount) || amount <= 0) return;
 
     setSavingCustomCharge(true);
@@ -131,7 +143,7 @@ export default function AssignSplits() {
       const updated = await api.addReceiptItem(receiptId, {
         name: customName.trim(),
         quantity: 1,
-        price: amount,
+        price: Number(amount.toFixed(2)),
         isTaxTip: true,
       });
       const addedItem = updated.items[updated.items.length - 1];
@@ -140,8 +152,11 @@ export default function AssignSplits() {
         ...prev,
         [addedItem.id]: new Set(participants.map(p => p.id)),
       }));
-      setCustomName('Custom Tip');
+      await refreshSession();
+      setCustomName('Tip');
+      setCustomPercent('20');
       setCustomAmount('');
+      setCustomChargeMode('percent');
       setShowCustomCharge(false);
     } finally {
       setSavingCustomCharge(false);
@@ -149,6 +164,10 @@ export default function AssignSplits() {
   }
 
   const total = receipt?.items.reduce((s, i) => s + i.price * i.quantity, 0) ?? 0;
+  const mealSubtotal = receipt?.items.reduce((sum, item) => isTaxTipItem(item) ? sum : sum + getItemTotal(item), 0) ?? 0;
+  const customChargeAmount = customChargeMode === 'percent'
+    ? mealSubtotal * ((parseFloat(customPercent) || 0) / 100)
+    : parseFloat(customAmount) || 0;
   const unassigned = getUnassignedTotal();
   const canSave = mode === 'item' ? unassigned === 0 : pctValid;
   const receiptName = receipt?.name?.trim() ?? '';
@@ -202,7 +221,7 @@ export default function AssignSplits() {
                     <div className="row-between" style={{ alignItems: 'flex-start', marginBottom: 16 }}>
                       <div>
                         <h3>{item.name}</h3>
-                        <p className="muted">{item.is_tax_tip ? 'Tax and tip' : item.quantity > 1 ? `Qty ${item.quantity}` : 'Item'}</p>
+                        <p className="muted">{isTaxTipItem(item) ? 'Tax and tip' : item.quantity > 1 ? `Qty ${item.quantity}` : 'Item'}</p>
                       </div>
                       <h3>${getItemTotal(item).toFixed(2)}</h3>
                     </div>
@@ -310,7 +329,7 @@ export default function AssignSplits() {
             {saving ? 'Saving' : 'Finalize Splits'}
           </button>
           <button className="btn btn-secondary" type="button" onClick={() => setShowCustomCharge(true)}>
-            Add Custom Tip/Tax
+            Add Tip or Tax
           </button>
         </section>
       </main>
@@ -318,9 +337,15 @@ export default function AssignSplits() {
       {showCustomCharge && (
         <CustomChargeSheet
           name={customName}
+          mode={customChargeMode}
+          percent={customPercent}
           amount={customAmount}
+          mealSubtotal={mealSubtotal}
+          calculatedAmount={customChargeAmount}
           saving={savingCustomCharge}
           onNameChange={setCustomName}
+          onModeChange={setCustomChargeMode}
+          onPercentChange={setCustomPercent}
           onAmountChange={setCustomAmount}
           onClose={() => setShowCustomCharge(false)}
           onSubmit={handleAddCustomCharge}
@@ -332,15 +357,29 @@ export default function AssignSplits() {
   );
 }
 
-function CustomChargeSheet({ name, amount, saving, onNameChange, onAmountChange, onClose, onSubmit }) {
+function CustomChargeSheet({
+  name,
+  mode,
+  percent,
+  amount,
+  mealSubtotal,
+  calculatedAmount,
+  saving,
+  onNameChange,
+  onModeChange,
+  onPercentChange,
+  onAmountChange,
+  onClose,
+  onSubmit,
+}) {
   return (
     <div className="floating-sheet" role="dialog" aria-modal="true" aria-label="Add custom tip or tax">
       <button className="floating-sheet-scrim" type="button" onClick={onClose} aria-label="Close custom charge" />
       <form className="floating-sheet-panel" onSubmit={onSubmit}>
         <div className="row-between" style={{ alignItems: 'flex-start', marginBottom: 22 }}>
           <div>
-            <h2>Add Custom Tip/Tax</h2>
-            <p className="muted" style={{ marginTop: 6 }}>Add a tax, service fee, or shared tip to this receipt.</p>
+            <h2>Add Tip or Tax</h2>
+            <p className="muted" style={{ marginTop: 6 }}>Calculate a percentage from the meal or enter a fixed amount.</p>
           </div>
           <button className="icon-btn" type="button" onClick={onClose} aria-label="Close">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
@@ -353,13 +392,48 @@ function CustomChargeSheet({ name, amount, saving, onNameChange, onAmountChange,
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           <div>
             <label>Label</label>
-            <input className="input" value={name} onChange={e => onNameChange(e.target.value)} placeholder="Custom Tip" />
+            <input className="input" value={name} onChange={e => onNameChange(e.target.value)} placeholder="Tip" />
           </div>
-          <div>
-            <label>Amount</label>
-            <input className="input" type="number" min="0" step="0.01" value={amount} onChange={e => onAmountChange(e.target.value)} placeholder="0.00" />
+
+          <div className="charge-toggle" role="group" aria-label="Charge calculation">
+            <button className={mode === 'percent' ? 'active' : ''} type="button" onClick={() => onModeChange('percent')}>
+              Percentage
+            </button>
+            <button className={mode === 'amount' ? 'active' : ''} type="button" onClick={() => onModeChange('amount')}>
+              Amount
+            </button>
           </div>
-          <button className="btn btn-primary" type="submit" disabled={saving || !name.trim() || !(parseFloat(amount) > 0)}>
+
+          {mode === 'percent' ? (
+            <div>
+              <label>Percentage of meal</label>
+              <div className="input-affix">
+                <input className="input" type="number" min="0" step="0.01" value={percent} onChange={e => onPercentChange(e.target.value)} placeholder="20" />
+                <span>%</span>
+              </div>
+            </div>
+          ) : (
+            <div>
+              <label>Amount</label>
+              <div className="input-affix">
+                <span>$</span>
+                <input className="input" type="number" min="0" step="0.01" value={amount} onChange={e => onAmountChange(e.target.value)} placeholder="0.00" />
+              </div>
+            </div>
+          )}
+
+          <div className="calc-summary">
+            <div className="row-between">
+              <span>Meal subtotal</span>
+              <strong>${mealSubtotal.toFixed(2)}</strong>
+            </div>
+            <div className="row-between">
+              <span>{name.trim() || 'Charge'}</span>
+              <strong>${calculatedAmount.toFixed(2)}</strong>
+            </div>
+          </div>
+
+          <button className="btn btn-primary" type="submit" disabled={saving || !name.trim() || !(calculatedAmount > 0)}>
             {saving ? 'Adding' : 'Add to Receipt'}
           </button>
         </div>

@@ -1,5 +1,9 @@
-import { Link, useLocation } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { api } from '../api';
 import { useSession } from '../context/useSession';
+import ConfirmationToast from './ConfirmationToast';
+import PaymentRequestNotice from './PaymentRequestNotice';
 
 const icons = {
   session: (
@@ -30,45 +34,162 @@ const icons = {
 
 export default function BottomNav({ sessionId }) {
   const location = useLocation();
-  const { session } = useSession();
+  const navigate = useNavigate();
+  const { session, participant, clearSession } = useSession();
+  const [hasUnassignedCash, setHasUnassignedCash] = useState(false);
+  const [warning, setWarning] = useState('');
+  const [paymentRequest, setPaymentRequest] = useState(null);
   const base = `/session/${sessionId}`;
   const canAccessSplitFlow = (session?.receipts ?? []).some(receipt => Number(receipt.item_count ?? 0) > 0);
   const tabs = [
     { to: base, label: 'Session', icon: icons.session, match: path => path === base },
     { to: `${base}/receipts`, label: 'Receipts', icon: icons.receipts, match: path => path.includes('/receipts') && !path.includes('/splits') },
     { to: `${base}/splits`, label: 'Splits', icon: icons.splits, gated: true, match: path => path.includes('/splits') },
-    { to: `${base}/review`, label: 'Review', icon: icons.review, gated: true, match: path => path.includes('/review') || path.includes('/payment-methods') },
+    { to: `${base}/review`, label: 'Review', icon: icons.review, gated: true, reviewGate: true, match: path => path.includes('/review') || path.includes('/payment-methods') },
   ];
 
+  useEffect(() => {
+    let active = true;
+    if (!sessionId || !canAccessSplitFlow) {
+      return () => {
+        active = false;
+      };
+    }
+
+    api.getReview(sessionId)
+      .then(data => {
+        if (active) setHasUnassignedCash(Boolean(data.hasUnassignedCash));
+      })
+      .catch(() => {
+        if (active) setHasUnassignedCash(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [canAccessSplitFlow, sessionId, session?.receipts]);
+
+  useEffect(() => {
+    if (!warning) return undefined;
+    const timer = setTimeout(() => setWarning(''), 1900);
+    return () => clearTimeout(timer);
+  }, [warning]);
+
+  useEffect(() => {
+    let active = true;
+    if (!sessionId) return undefined;
+
+    async function checkSessionEnded() {
+      try {
+        const fresh = await api.getSession(sessionId);
+        if (active && fresh.ended_at) {
+          clearSession();
+          navigate('/');
+        }
+      } catch {
+        if (active) {
+          clearSession();
+          navigate('/');
+        }
+      }
+    }
+
+    const interval = setInterval(checkSessionEnded, 4000);
+    return () => {
+      active = false;
+      clearInterval(interval);
+    };
+  }, [clearSession, navigate, sessionId]);
+
+  useEffect(() => {
+    let active = true;
+    let interval;
+    const isNonAdmin = participant && !participant.is_admin;
+
+    if (!sessionId || !isNonAdmin) return undefined;
+
+    async function loadPaymentRequests() {
+      try {
+        const data = await api.getPaymentRequests(sessionId, participant.id);
+        if (active) setPaymentRequest(data.requests?.[0] ?? null);
+      } catch {
+        if (active) setPaymentRequest(null);
+      }
+    }
+
+    loadPaymentRequests();
+    interval = setInterval(loadPaymentRequests, 4000);
+
+    return () => {
+      active = false;
+      clearInterval(interval);
+    };
+  }, [participant, sessionId]);
+
+  function showBlockedWarning(tab) {
+    if (!canAccessSplitFlow) {
+      setWarning('Add receipt items before opening this section');
+      return;
+    }
+    if (tab.reviewGate && hasUnassignedCash) {
+      setWarning('Assign all cash before Final Review');
+    }
+  }
+
+  async function resolvePaymentRequest(status) {
+    if (!paymentRequest || !participant) return;
+
+    const current = paymentRequest;
+    setPaymentRequest(null);
+    try {
+      await api.updatePaymentRequest(sessionId, current.id, participant.id, status);
+      if (status === 'paid') setWarning('Payment marked as sent');
+    } catch {
+      setPaymentRequest(current);
+    }
+  }
+
   return (
-    <nav className="bottom-nav">
-      {tabs.map(tab => {
-        const active = tab.match(location.pathname);
-        if (tab.gated && !canAccessSplitFlow) {
+    <>
+      <nav className="bottom-nav">
+        {tabs.map(tab => {
+          const active = tab.match(location.pathname);
+          const blocked = tab.gated && (!canAccessSplitFlow || (tab.reviewGate && hasUnassignedCash));
+
+          if (blocked) {
+            return (
+              <button
+                key={tab.to}
+                className={`bottom-nav-item disabled${active ? ' active' : ''}`}
+                type="button"
+                aria-disabled="true"
+                title={tab.reviewGate && hasUnassignedCash ? 'Assign all cash first' : 'Add receipt items first'}
+                onClick={() => showBlockedWarning(tab)}
+              >
+                {tab.icon}
+                {tab.label}
+              </button>
+            );
+          }
+
           return (
-            <span
+            <Link
               key={tab.to}
-              className={`bottom-nav-item disabled${active ? ' active' : ''}`}
-              aria-disabled="true"
-              title="Add receipt items first"
+              to={tab.to}
+              className={`bottom-nav-item${active ? ' active' : ''}`}
             >
               {tab.icon}
               {tab.label}
-            </span>
+            </Link>
           );
-        }
-
-        return (
-          <Link
-            key={tab.to}
-            to={tab.to}
-            className={`bottom-nav-item${active ? ' active' : ''}`}
-          >
-            {tab.icon}
-            {tab.label}
-          </Link>
-        );
-      })}
-    </nav>
+        })}
+      </nav>
+      {warning && <ConfirmationToast message={warning} status="warning" />}
+      <PaymentRequestNotice
+        request={paymentRequest}
+        onPay={() => resolvePaymentRequest('paid')}
+        onDismiss={() => setPaymentRequest(null)}
+      />
+    </>
   );
 }

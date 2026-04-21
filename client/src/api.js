@@ -27,8 +27,23 @@ export const api = {
   getReview: (sessionId) =>
     request('GET', `/sessions/${sessionId}/review`),
 
-  addReceipt: (sessionId, name, items, scannedAt) =>
-    request('POST', '/receipts', { sessionId, name, items, scannedAt }),
+  sendPaymentRequests: (sessionId, participantId) =>
+    request('POST', `/sessions/${sessionId}/payment-requests`, { participantId }),
+
+  getPaymentRequests: (sessionId, participantId) =>
+    request('GET', `/sessions/${sessionId}/payment-requests/${participantId}`),
+
+  listPaymentRequests: (sessionId, participantId) =>
+    request('GET', `/sessions/${sessionId}/payment-requests?participantId=${participantId}`),
+
+  updatePaymentRequest: (sessionId, requestId, participantId, status) =>
+    request('PATCH', `/sessions/${sessionId}/payment-requests/${requestId}`, { participantId, status }),
+
+  endSession: (sessionId, participantId) =>
+    request('POST', `/sessions/${sessionId}/end`, { participantId }),
+
+  addReceipt: (sessionId, name, items, scannedAt, participantId) =>
+    request('POST', '/receipts', { sessionId, name, items, scannedAt, participantId }),
 
   getReceipt: (id) =>
     request('GET', `/receipts/${id}`),
