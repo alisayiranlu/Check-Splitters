@@ -1,5 +1,8 @@
+import { useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
+import { api } from '../api';
 import { useSession } from '../context/useSession';
+import ConfirmationToast from './ConfirmationToast';
 
 const icons = {
   session: (
@@ -31,44 +34,90 @@ const icons = {
 export default function BottomNav({ sessionId }) {
   const location = useLocation();
   const { session } = useSession();
+  const [hasUnassignedCash, setHasUnassignedCash] = useState(false);
+  const [warning, setWarning] = useState('');
   const base = `/session/${sessionId}`;
   const canAccessSplitFlow = (session?.receipts ?? []).some(receipt => Number(receipt.item_count ?? 0) > 0);
   const tabs = [
     { to: base, label: 'Session', icon: icons.session, match: path => path === base },
     { to: `${base}/receipts`, label: 'Receipts', icon: icons.receipts, match: path => path.includes('/receipts') && !path.includes('/splits') },
     { to: `${base}/splits`, label: 'Splits', icon: icons.splits, gated: true, match: path => path.includes('/splits') },
-    { to: `${base}/review`, label: 'Review', icon: icons.review, gated: true, match: path => path.includes('/review') || path.includes('/payment-methods') },
+    { to: `${base}/review`, label: 'Review', icon: icons.review, gated: true, reviewGate: true, match: path => path.includes('/review') || path.includes('/payment-methods') },
   ];
 
+  useEffect(() => {
+    let active = true;
+    if (!sessionId || !canAccessSplitFlow) {
+      return () => {
+        active = false;
+      };
+    }
+
+    api.getReview(sessionId)
+      .then(data => {
+        if (active) setHasUnassignedCash(Boolean(data.hasUnassignedCash));
+      })
+      .catch(() => {
+        if (active) setHasUnassignedCash(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [canAccessSplitFlow, sessionId, session?.receipts]);
+
+  useEffect(() => {
+    if (!warning) return undefined;
+    const timer = setTimeout(() => setWarning(''), 1900);
+    return () => clearTimeout(timer);
+  }, [warning]);
+
+  function showBlockedWarning(tab) {
+    if (!canAccessSplitFlow) {
+      setWarning('Add receipt items before opening this section');
+      return;
+    }
+    if (tab.reviewGate && hasUnassignedCash) {
+      setWarning('Assign all cash before Final Review');
+    }
+  }
+
   return (
-    <nav className="bottom-nav">
-      {tabs.map(tab => {
-        const active = tab.match(location.pathname);
-        if (tab.gated && !canAccessSplitFlow) {
+    <>
+      <nav className="bottom-nav">
+        {tabs.map(tab => {
+          const active = tab.match(location.pathname);
+          const blocked = tab.gated && (!canAccessSplitFlow || (tab.reviewGate && hasUnassignedCash));
+
+          if (blocked) {
+            return (
+              <button
+                key={tab.to}
+                className={`bottom-nav-item disabled${active ? ' active' : ''}`}
+                type="button"
+                aria-disabled="true"
+                title={tab.reviewGate && hasUnassignedCash ? 'Assign all cash first' : 'Add receipt items first'}
+                onClick={() => showBlockedWarning(tab)}
+              >
+                {tab.icon}
+                {tab.label}
+              </button>
+            );
+          }
+
           return (
-            <span
+            <Link
               key={tab.to}
-              className={`bottom-nav-item disabled${active ? ' active' : ''}`}
-              aria-disabled="true"
-              title="Add receipt items first"
+              to={tab.to}
+              className={`bottom-nav-item${active ? ' active' : ''}`}
             >
               {tab.icon}
               {tab.label}
-            </span>
+            </Link>
           );
-        }
-
-        return (
-          <Link
-            key={tab.to}
-            to={tab.to}
-            className={`bottom-nav-item${active ? ' active' : ''}`}
-          >
-            {tab.icon}
-            {tab.label}
-          </Link>
-        );
-      })}
-    </nav>
+        })}
+      </nav>
+      {warning && <ConfirmationToast message={warning} status="warning" />}
+    </>
   );
 }

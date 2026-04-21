@@ -133,6 +133,11 @@ router.put('/:id/splits', (req, res) => {
   const receipt = db.prepare('SELECT * FROM receipts WHERE id = ?').get(req.params.id);
   if (!receipt) return res.status(404).json({ error: 'Receipt not found' });
 
+  const zeroValueItem = db.prepare('SELECT id FROM items WHERE receipt_id = ? AND price * quantity <= 0 LIMIT 1').get(receipt.id);
+  if (zeroValueItem) {
+    return res.status(400).json({ error: 'All items must be greater than $0 before assigning splits' });
+  }
+
   for (const { itemId, assignments } of splits) {
     db.prepare('DELETE FROM splits WHERE item_id = ?').run(itemId);
     for (const { participantId, amount } of assignments) {

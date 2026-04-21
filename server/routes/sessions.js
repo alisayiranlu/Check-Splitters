@@ -24,6 +24,48 @@ function getSessionReceipts(sessionId) {
   `).all(sessionId);
 }
 
+function normalizeCashGap(total, assigned) {
+  // Ignore tiny rounding gaps so cents do not block review.
+  const gap = total - assigned;
+  return Math.abs(gap) < 0.01 ? 0 : Math.max(0, gap);
+}
+
+function buildReceiptSummaries(receipts, participants) {
+  const receiptTotalQuery = db.prepare('SELECT COALESCE(SUM(price * quantity), 0) AS total FROM items WHERE receipt_id = ?');
+  const receiptSplitsQuery = db.prepare(`
+    SELECT s.participant_id, SUM(s.amount) AS total, COUNT(s.id) AS itemCount
+    FROM splits s
+    JOIN items i ON s.item_id = i.id
+    WHERE i.receipt_id = ?
+    GROUP BY s.participant_id
+  `);
+
+  return receipts.map(receipt => {
+    // Group split amounts by receipt so the client can show editable receipt ledgers.
+    const splitRows = receiptSplitsQuery.all(receipt.id);
+    const totalsByParticipant = new Map(splitRows.map(row => [row.participant_id, row]));
+    const participantTotals = participants.map(participant => {
+      const row = totalsByParticipant.get(participant.id);
+      return {
+        ...participant,
+        total: row?.total ?? 0,
+        itemCount: row?.itemCount ?? 0,
+      };
+    });
+
+    const total = receiptTotalQuery.get(receipt.id).total;
+    const splitTotal = participantTotals.reduce((sum, participant) => sum + participant.total, 0);
+
+    return {
+      ...receipt,
+      total,
+      splitTotal,
+      unassignedTotal: normalizeCashGap(total, splitTotal),
+      participants: participantTotals,
+    };
+  });
+}
+
 // Create a new session
 router.post('/', (req, res) => {
   const { name, participantName } = req.body;
@@ -101,6 +143,7 @@ router.get('/:id/review', (req, res) => {
 
   const participants = db.prepare('SELECT * FROM participants WHERE session_id = ? ORDER BY created_at ASC').all(session.id);
   const receipts = getSessionReceipts(session.id);
+  const receiptSummaries = buildReceiptSummaries(receipts, participants);
 
   const summary = participants.map(p => {
     const splits = db.prepare(`
@@ -119,8 +162,9 @@ router.get('/:id/review', (req, res) => {
   const grandTotal = summary.reduce((sum, p) => sum + p.total, 0);
 
   const hasReceiptItems = receipts.some(receipt => receipt.item_count > 0);
+  const hasUnassignedCash = receiptSummaries.some(receipt => receipt.unassignedTotal > 0);
 
-  res.json({ session, participants: summary, receipts, grandTotal, hasReceiptItems });
+  res.json({ session, participants: summary, receipts: receiptSummaries, grandTotal, hasReceiptItems, hasUnassignedCash });
 });
 
 module.exports = router;

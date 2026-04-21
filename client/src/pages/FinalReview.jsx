@@ -21,6 +21,10 @@ export default function FinalReview() {
         navigate(`/session/${sessionId}/receipts`, { replace: true });
         return;
       }
+      if (data.hasUnassignedCash) {
+        navigate(`/session/${sessionId}/splits`, { replace: true });
+        return;
+      }
       setReview(data);
     });
   }, [navigate, sessionId]);
