@@ -22,6 +22,10 @@ export default function AssignSplits() {
   useEffect(() => {
     refreshSession();
     api.getReceipt(receiptId).then(r => {
+      if ((r.items ?? []).length === 0) {
+        navigate(`/session/${sessionId}/receipts/${receiptId}/edit`, { replace: true });
+        return;
+      }
       setReceipt(r);
       const init = {};
       r.items.forEach(item => {
@@ -29,7 +33,7 @@ export default function AssignSplits() {
       });
       setAssignments(init);
     });
-  }, [receiptId, refreshSession]);
+  }, [navigate, receiptId, refreshSession, sessionId]);
 
   function toggleParticipant(itemId, participantId) {
     setAssignments(prev => {

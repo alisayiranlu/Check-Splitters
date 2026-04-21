@@ -13,6 +13,17 @@ function generateCode() {
   return Math.floor(100000 + Math.random() * 900000).toString();
 }
 
+function getSessionReceipts(sessionId) {
+  return db.prepare(`
+    SELECT r.*, COUNT(i.id) AS item_count
+    FROM receipts r
+    LEFT JOIN items i ON i.receipt_id = r.id
+    WHERE r.session_id = ?
+    GROUP BY r.id
+    ORDER BY r.created_at ASC
+  `).all(sessionId);
+}
+
 // Create a new session
 router.post('/', (req, res) => {
   const { name, participantName } = req.body;
@@ -46,7 +57,7 @@ router.get('/code/:code', (req, res) => {
   if (!session) return res.status(404).json({ error: 'Session not found' });
 
   const participants = db.prepare('SELECT * FROM participants WHERE session_id = ? ORDER BY created_at ASC').all(session.id);
-  const receipts = db.prepare('SELECT * FROM receipts WHERE session_id = ? ORDER BY created_at ASC').all(session.id);
+  const receipts = getSessionReceipts(session.id);
 
   res.json({ ...session, participants, receipts });
 });
@@ -57,7 +68,7 @@ router.get('/:id', (req, res) => {
   if (!session) return res.status(404).json({ error: 'Session not found' });
 
   const participants = db.prepare('SELECT * FROM participants WHERE session_id = ? ORDER BY created_at ASC').all(session.id);
-  const receipts = db.prepare('SELECT * FROM receipts WHERE session_id = ? ORDER BY created_at ASC').all(session.id);
+  const receipts = getSessionReceipts(session.id);
 
   res.json({ ...session, participants, receipts });
 });
@@ -89,7 +100,7 @@ router.get('/:id/review', (req, res) => {
   if (!session) return res.status(404).json({ error: 'Session not found' });
 
   const participants = db.prepare('SELECT * FROM participants WHERE session_id = ? ORDER BY created_at ASC').all(session.id);
-  const receipts = db.prepare('SELECT * FROM receipts WHERE session_id = ?').all(session.id);
+  const receipts = getSessionReceipts(session.id);
 
   const summary = participants.map(p => {
     const splits = db.prepare(`
@@ -107,7 +118,9 @@ router.get('/:id/review', (req, res) => {
 
   const grandTotal = summary.reduce((sum, p) => sum + p.total, 0);
 
-  res.json({ session, participants: summary, receipts, grandTotal });
+  const hasReceiptItems = receipts.some(receipt => receipt.item_count > 0);
+
+  res.json({ session, participants: summary, receipts, grandTotal, hasReceiptItems });
 });
 
 module.exports = router;

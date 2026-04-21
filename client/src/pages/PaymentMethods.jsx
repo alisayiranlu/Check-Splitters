@@ -4,10 +4,11 @@ import { useSession } from '../context/useSession';
 import BottomNav from '../components/BottomNav';
 
 export default function PaymentMethods() {
-  const { id: sessionId } = useParams();
+  const { id } = useParams();
   const navigate = useNavigate();
-  const { participant } = useSession();
-  const storageKey = `cs_payment_wallet_${sessionId}`;
+  const { session, participant } = useSession();
+  const sessionId = id || session?.id;
+  const storageKey = `cs_payment_wallet_${sessionId || 'global'}`;
   const [selectedWallet, setSelectedWallet] = useState(() => localStorage.getItem(storageKey) || 'apple');
 
   useEffect(() => {
@@ -110,7 +111,7 @@ export default function PaymentMethods() {
         </section>
       </main>
 
-      <BottomNav sessionId={sessionId} />
+      {sessionId ? <BottomNav sessionId={sessionId} /> : null}
     </div>
   );
 }

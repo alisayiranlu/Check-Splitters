@@ -12,7 +12,7 @@ export default function SideMenu({ open, onClose, sessionId, participant, clearS
   function goToPaymentSettings() {
     onClose();
     if (activeSessionId) navigate(`/session/${activeSessionId}/payment-methods`);
-    else navigate('/join');
+    else navigate('/payment-methods');
   }
 
   function exitSession() {
@@ -43,10 +43,6 @@ export default function SideMenu({ open, onClose, sessionId, participant, clearS
             <button className="drawer-link" type="button">
               <HelpIcon />
               <span>{'Help & Support'}</span>
-            </button>
-            <button className="drawer-link" type="button">
-              <UserEditIcon />
-              <span>Change Name / Avatar</span>
             </button>
           </nav>
         </div>
@@ -89,17 +85,6 @@ function HelpIcon() {
       <circle cx="12" cy="12" r="9" />
       <path d="M9.5 9a2.8 2.8 0 0 1 5.2 1.4c0 2.1-2.7 2.2-2.7 4" />
       <path d="M12 18h.01" />
-    </svg>
-  );
-}
-
-function UserEditIcon() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M15 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2" />
-      <circle cx="9" cy="7" r="4" />
-      <path d="m16 11 4 4" />
-      <path d="m21 10-6 6-2 1 1-2 6-6a1.4 1.4 0 0 1 2 0 1.4 1.4 0 0 1 0 2Z" />
     </svg>
   );
 }

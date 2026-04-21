@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useSession } from '../context/useSession';
 import BottomNav from '../components/BottomNav';
 import SideMenu from '../components/SideMenu';
+import ConfirmationToast from '../components/ConfirmationToast';
 
 export default function SessionLobby() {
   const { id } = useParams();
@@ -57,19 +58,16 @@ export default function SessionLobby() {
             <div className="amount" style={{ fontSize: '1.75rem', letterSpacing: '0.16em' }}>{session.code}</div>
           </div>
           <button className="btn btn-primary" style={{ width: 'auto', minHeight: 38, padding: '8px 18px' }} onClick={copyCode}>
-            {copied ? 'Copied' : 'Invite'}
+            Invite
           </button>
         </section>
 
         <section className="card">
-          <div className="row-between" style={{ marginBottom: 22 }}>
+          <div style={{ marginBottom: 22 }}>
             <div>
               <h3>Group Members</h3>
               <p className="muted">{participants.length} participant{participants.length === 1 ? '' : 's'}</p>
             </div>
-            <button className="btn btn-primary" style={{ width: 'auto', minHeight: 36, padding: '8px 16px' }} onClick={copyCode}>
-              Invite
-            </button>
           </div>
 
           <div className="list-stack" style={{ gap: 18 }}>
@@ -96,6 +94,7 @@ export default function SessionLobby() {
         </section>
       </main>
 
+      {copied && <ConfirmationToast message="Invite code copied" />}
       <BottomNav sessionId={id} />
       <SideMenu
         open={menuOpen}

@@ -11,8 +11,14 @@ export default function SplitsOverview() {
   const [review, setReview] = useState(null);
 
   useEffect(() => {
-    api.getReview(sessionId).then(setReview);
-  }, [sessionId]);
+    api.getReview(sessionId).then(data => {
+      if (!data.hasReceiptItems) {
+        navigate(`/session/${sessionId}/receipts`, { replace: true });
+        return;
+      }
+      setReview(data);
+    });
+  }, [navigate, sessionId]);
 
   if (!review) {
     return <div className="page"><div className="page-content">Loading</div><BottomNav sessionId={sessionId} /></div>;
