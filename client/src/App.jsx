@@ -21,6 +21,7 @@ export default function App() {
           <Route path="/" element={<Home />} />
           <Route path="/create" element={<CreateSession initialMode="create" />} />
           <Route path="/join" element={<CreateSession initialMode="join" />} />
+          <Route path="/payment-methods" element={<PaymentMethods />} />
 
           <Route path="/session/:id" element={<SessionLobby />} />
           <Route path="/session/:id/receipts" element={<Receipts />} />

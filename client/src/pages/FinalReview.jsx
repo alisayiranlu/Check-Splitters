@@ -3,25 +3,42 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { api } from '../api';
 import { useSession } from '../context/useSession';
 import BottomNav from '../components/BottomNav';
+import ConfirmationToast from '../components/ConfirmationToast';
 
 export default function FinalReview() {
   const { id: sessionId } = useParams();
   const navigate = useNavigate();
-  const { session, participant } = useSession();
+  const { session, participant, clearSession } = useSession();
   const [review, setReview] = useState(null);
   const [confirmed, setConfirmed] = useState(false);
   const [pickingReceipt, setPickingReceipt] = useState(false);
+  const [requestStatus, setRequestStatus] = useState('idle');
   const isAdmin = !!participant?.is_admin;
 
   useEffect(() => {
-    api.getReview(sessionId).then(setReview);
-  }, [sessionId]);
+    api.getReview(sessionId).then(data => {
+      if (!data.hasReceiptItems) {
+        navigate(`/session/${sessionId}/receipts`, { replace: true });
+        return;
+      }
+      setReview(data);
+    });
+  }, [navigate, sessionId]);
+
+  useEffect(() => {
+    if (requestStatus !== 'sent') return undefined;
+    const acceptTimer = setTimeout(() => setRequestStatus('accepted'), 1000);
+    return () => clearTimeout(acceptTimer);
+  }, [requestStatus]);
 
   function handleConfirm() {
     setConfirmed(true);
-    setTimeout(() => {
-      alert('Payment requests sent');
-    }, 300);
+    setRequestStatus('sent');
+  }
+
+  function finishSession() {
+    clearSession();
+    navigate('/');
   }
 
   function handleEditSplits() {
@@ -173,6 +190,16 @@ export default function FinalReview() {
       </main>
 
       <BottomNav sessionId={sessionId} />
+      {requestStatus !== 'idle' && (
+        <ConfirmationToast
+          message={requestStatus === 'accepted' ? 'Payment requests accepted' : 'Sending payment requests'}
+          variant="modal"
+          status={requestStatus === 'accepted' ? 'success' : 'loading'}
+          actionLabel={requestStatus === 'accepted' ? 'Finished' : undefined}
+          onAction={finishSession}
+          onDismiss={() => setRequestStatus('idle')}
+        />
+      )}
     </div>
   );
 }

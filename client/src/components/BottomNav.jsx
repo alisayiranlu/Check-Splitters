@@ -1,4 +1,5 @@
 import { Link, useLocation } from 'react-router-dom';
+import { useSession } from '../context/useSession';
 
 const icons = {
   session: (
@@ -29,18 +30,34 @@ const icons = {
 
 export default function BottomNav({ sessionId }) {
   const location = useLocation();
+  const { session } = useSession();
   const base = `/session/${sessionId}`;
+  const canAccessSplitFlow = (session?.receipts ?? []).some(receipt => Number(receipt.item_count ?? 0) > 0);
   const tabs = [
     { to: base, label: 'Session', icon: icons.session, match: path => path === base },
     { to: `${base}/receipts`, label: 'Receipts', icon: icons.receipts, match: path => path.includes('/receipts') && !path.includes('/splits') },
-    { to: `${base}/splits`, label: 'Splits', icon: icons.splits, match: path => path.includes('/splits') },
-    { to: `${base}/review`, label: 'Review', icon: icons.review, match: path => path.includes('/review') || path.includes('/payment-methods') },
+    { to: `${base}/splits`, label: 'Splits', icon: icons.splits, gated: true, match: path => path.includes('/splits') },
+    { to: `${base}/review`, label: 'Review', icon: icons.review, gated: true, match: path => path.includes('/review') || path.includes('/payment-methods') },
   ];
 
   return (
     <nav className="bottom-nav">
       {tabs.map(tab => {
         const active = tab.match(location.pathname);
+        if (tab.gated && !canAccessSplitFlow) {
+          return (
+            <span
+              key={tab.to}
+              className={`bottom-nav-item disabled${active ? ' active' : ''}`}
+              aria-disabled="true"
+              title="Add receipt items first"
+            >
+              {tab.icon}
+              {tab.label}
+            </span>
+          );
+        }
+
         return (
           <Link
             key={tab.to}

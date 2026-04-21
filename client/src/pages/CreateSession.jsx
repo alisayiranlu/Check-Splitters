@@ -5,7 +5,7 @@ import { useSession } from '../context/useSession';
 
 export default function CreateSession({ initialMode = 'create' }) {
   const navigate = useNavigate();
-  const [mode, setMode] = useState(initialMode);
+  const isJoin = initialMode === 'join';
 
   return (
     <div className="page no-nav">
@@ -15,26 +15,22 @@ export default function CreateSession({ initialMode = 'create' }) {
             <polyline points="15 18 9 12 15 6" />
           </svg>
         </button>
-        <span className="topbar-title">Create or Join Session</span>
+        <span className="topbar-title">{isJoin ? 'Join Session' : 'Create Session'}</span>
         <div className="avatar" style={{ width: 32, height: 32 }}>CS</div>
       </header>
 
       <main className="page-content">
         <section className="card">
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 22 }}>
-            <h2>Start a Split</h2>
-            <p className="muted">Create a curated session for upcoming shared expenses.</p>
-            <div className="tabs" style={{ justifyContent: 'flex-start' }}>
-              <button className={`tab${mode === 'create' ? ' active' : ''}`} type="button" onClick={() => setMode('create')}>
-                Create
-              </button>
-              <button className={`tab${mode === 'join' ? ' active' : ''}`} type="button" onClick={() => setMode('join')}>
-                Join
-              </button>
-            </div>
+            <h2>{isJoin ? 'Join a Split' : 'Start a Split'}</h2>
+            <p className="muted">
+              {isJoin
+                ? 'Enter an invite code to access an active shared ledger.'
+                : 'Create a curated session for upcoming shared expenses.'}
+            </p>
           </div>
 
-          {mode === 'create' ? <CreateForm /> : <JoinForm />}
+          {isJoin ? <JoinForm /> : <CreateForm />}
         </section>
       </main>
     </div>
