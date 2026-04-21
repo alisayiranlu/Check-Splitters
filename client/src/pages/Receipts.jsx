@@ -9,12 +9,34 @@ export default function Receipts() {
   const navigate = useNavigate();
   const { session, participant, refreshSession } = useSession();
   const [receipts, setReceipts] = useState([]);
+  const [loading, setLoading] = useState(true);
   const isAdmin = Boolean(participant?.is_admin);
 
   useEffect(() => {
-    refreshSession().then(s => {
-      if (s) setReceipts(s.receipts ?? []);
-    });
+    let isActive = true;
+
+    setLoading(true);
+
+    (async () => {
+      try {
+        const refreshedSession = await refreshSession();
+        if (!isActive) return;
+        setReceipts(refreshedSession?.receipts ?? []);
+      } catch (error) {
+        console.error('Failed to load receipts:', error);
+        if (isActive) {
+          setReceipts([]);
+        }
+      } finally {
+        if (isActive) {
+          setLoading(false);
+        }
+      }
+    })();
+
+    return () => {
+      isActive = false;
+    };
   }, [refreshSession]);
 
   async function handleDelete(receiptId, e) {
@@ -52,7 +74,9 @@ export default function Receipts() {
           <p className="muted">Review scanned and manually entered receipts before assigning splits.</p>
         </section>
 
-        {receipts.length === 0 ? (
+        {loading ? (
+          <p className="muted">Loading...</p>
+        ) : receipts.length === 0 ? (
           <section className="empty-state">
             <h3>No receipts yet</h3>
             <p>{isAdmin ? 'Add your first receipt to start splitting.' : 'Waiting for an admin to add the first receipt.'}</p>
@@ -71,9 +95,9 @@ export default function Receipts() {
                 role="button"
                 tabIndex={0}
                 style={{ textAlign: 'left', cursor: 'pointer' }}
-                onClick={() => navigate(`/session/${sessionId}/receipts/${receipt.id}/edit`)}
+                onClick={() => navigate(`/session/${sessionId}/receipts/${receipt.id}`)}
                 onKeyDown={e => {
-                  if (e.key === 'Enter') navigate(`/session/${sessionId}/receipts/${receipt.id}/edit`);
+                  if (e.key === 'Enter') navigate(`/session/${sessionId}/receipts/${receipt.id}`);
                 }}
               >
                 <div className="list-row">

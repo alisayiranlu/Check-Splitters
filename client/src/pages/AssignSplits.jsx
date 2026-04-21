@@ -314,6 +314,13 @@ export default function AssignSplits() {
               <span>Total Assigned</span>
               <span className={Math.abs(pctTotal - 100) < 0.01 ? '' : 'danger-text'}>{pctTotal.toFixed(pctTotal % 1 === 0 ? 0 : 2)}%</span>
             </div>
+            {pctTotal > 0 && Math.abs(pctTotal - 100) >= 0.01 && (
+              <p style={{ fontSize: '0.8rem', color: 'var(--danger)', fontWeight: 600 }}>
+                {pctTotal > 100
+                  ? `Over by ${(pctTotal - 100).toFixed(2)}% — reduce someone's share`
+                  : `${(100 - pctTotal).toFixed(2)}% still unassigned`}
+              </p>
+            )}
           </section>
         )}
 
