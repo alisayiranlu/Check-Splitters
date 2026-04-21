@@ -13,6 +13,7 @@ export default function FinalReview() {
   const [confirmed, setConfirmed] = useState(false);
   const [pickingReceipt, setPickingReceipt] = useState(false);
   const [requestStatus, setRequestStatus] = useState('idle');
+  const [paymentRequests, setPaymentRequests] = useState([]);
   const isAdmin = !!participant?.is_admin;
 
   useEffect(() => {
@@ -30,17 +31,52 @@ export default function FinalReview() {
   }, [navigate, sessionId]);
 
   useEffect(() => {
-    if (requestStatus !== 'sent') return undefined;
-    const acceptTimer = setTimeout(() => setRequestStatus('accepted'), 1000);
-    return () => clearTimeout(acceptTimer);
-  }, [requestStatus]);
+    let active = true;
+    let interval;
+    if (requestStatus !== 'sent' || !isAdmin || !participant) return undefined;
 
-  function handleConfirm() {
+    async function loadRequests() {
+      try {
+        const data = await api.listPaymentRequests(sessionId, participant.id);
+        const requests = data.requests ?? [];
+        if (!active) return;
+        setPaymentRequests(requests);
+        if (requests.length === 0 || requests.every(request => request.status === 'paid')) {
+          setRequestStatus('accepted');
+        }
+      } catch {
+        if (active) setRequestStatus('idle');
+      }
+    }
+
+    loadRequests();
+    interval = setInterval(loadRequests, 2000);
+    return () => {
+      active = false;
+      clearInterval(interval);
+    };
+  }, [isAdmin, participant, requestStatus, sessionId]);
+
+  async function handleConfirm() {
+    if (!isAdmin) return;
+
     setConfirmed(true);
     setRequestStatus('sent');
+    try {
+      const data = await api.sendPaymentRequests(sessionId, participant.id);
+      const requests = data.requests ?? [];
+      setPaymentRequests(requests);
+      if (requests.length === 0) setRequestStatus('accepted');
+    } catch {
+      setConfirmed(false);
+      setRequestStatus('idle');
+    }
   }
 
-  function finishSession() {
+  async function finishSession() {
+    if (isAdmin && participant) {
+      await api.endSession(sessionId, participant.id);
+    }
     clearSession();
     navigate('/');
   }
@@ -69,6 +105,13 @@ export default function FinalReview() {
       total: receipt.participants?.find(p => p.id === participant?.id)?.total ?? 0,
     }))
     .filter(receipt => receipt.total > 0);
+  const pendingPaymentCount = paymentRequests.filter(request => request.status !== 'paid').length;
+  const requestMessage = requestStatus === 'accepted'
+    ? 'Payment requests accepted'
+    : pendingPaymentCount === 1 ? 'Waiting for 1 payment' : `Waiting for ${pendingPaymentCount || paymentRequests.length || 1} payments`;
+  const confirmButtonLabel = requestStatus === 'accepted'
+    ? 'Requests Accepted'
+    : confirmed ? 'Waiting for Payments' : 'Confirm and Request';
 
   return (
     <div className="page">
@@ -208,26 +251,32 @@ export default function FinalReview() {
           </button>
         </section>
 
-        <button className="btn btn-primary" onClick={handleConfirm} disabled={confirmed}>
-          {confirmed ? 'Requests Sent' : 'Confirm and Request'}
-          {!confirmed && (
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <polyline points="9 18 15 12 9 6" />
-            </svg>
-          )}
-        </button>
-        <p className="muted" style={{ textAlign: 'center', fontSize: '0.75rem' }}>Notifications will be sent immediately.</p>
+        {isAdmin ? (
+          <>
+            <button className="btn btn-primary" onClick={handleConfirm} disabled={confirmed}>
+              {confirmButtonLabel}
+              {!confirmed && (
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="9 18 15 12 9 6" />
+                </svg>
+              )}
+            </button>
+            <p className="muted" style={{ textAlign: 'center', fontSize: '0.75rem' }}>Notifications will be sent immediately.</p>
+          </>
+        ) : (
+          <p className="muted" style={{ textAlign: 'center', fontSize: '0.875rem' }}>The admin will send your payment request.</p>
+        )}
       </main>
 
       <BottomNav sessionId={sessionId} />
       {requestStatus !== 'idle' && (
         <ConfirmationToast
-          message={requestStatus === 'accepted' ? 'Payment requests accepted' : 'Sending payment requests'}
+          message={requestMessage}
           variant="modal"
           status={requestStatus === 'accepted' ? 'success' : 'loading'}
           actionLabel={requestStatus === 'accepted' ? 'Finished' : undefined}
           onAction={finishSession}
-          onDismiss={() => setRequestStatus('idle')}
+          onDismiss={requestStatus === 'accepted' ? () => setRequestStatus('idle') : undefined}
         />
       )}
     </div>

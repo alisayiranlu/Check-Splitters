@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { api } from '../api';
 import { useSession } from '../context/useSession';
 import ConfirmationToast from './ConfirmationToast';
+import PaymentRequestNotice from './PaymentRequestNotice';
 
 const icons = {
   session: (
@@ -33,9 +34,11 @@ const icons = {
 
 export default function BottomNav({ sessionId }) {
   const location = useLocation();
-  const { session } = useSession();
+  const navigate = useNavigate();
+  const { session, participant, clearSession } = useSession();
   const [hasUnassignedCash, setHasUnassignedCash] = useState(false);
   const [warning, setWarning] = useState('');
+  const [paymentRequest, setPaymentRequest] = useState(null);
   const base = `/session/${sessionId}`;
   const canAccessSplitFlow = (session?.receipts ?? []).some(receipt => Number(receipt.item_count ?? 0) > 0);
   const tabs = [
@@ -72,6 +75,57 @@ export default function BottomNav({ sessionId }) {
     return () => clearTimeout(timer);
   }, [warning]);
 
+  useEffect(() => {
+    let active = true;
+    if (!sessionId) return undefined;
+
+    async function checkSessionEnded() {
+      try {
+        const fresh = await api.getSession(sessionId);
+        if (active && fresh.ended_at) {
+          clearSession();
+          navigate('/');
+        }
+      } catch {
+        if (active) {
+          clearSession();
+          navigate('/');
+        }
+      }
+    }
+
+    const interval = setInterval(checkSessionEnded, 4000);
+    return () => {
+      active = false;
+      clearInterval(interval);
+    };
+  }, [clearSession, navigate, sessionId]);
+
+  useEffect(() => {
+    let active = true;
+    let interval;
+    const isNonAdmin = participant && !participant.is_admin;
+
+    if (!sessionId || !isNonAdmin) return undefined;
+
+    async function loadPaymentRequests() {
+      try {
+        const data = await api.getPaymentRequests(sessionId, participant.id);
+        if (active) setPaymentRequest(data.requests?.[0] ?? null);
+      } catch {
+        if (active) setPaymentRequest(null);
+      }
+    }
+
+    loadPaymentRequests();
+    interval = setInterval(loadPaymentRequests, 4000);
+
+    return () => {
+      active = false;
+      clearInterval(interval);
+    };
+  }, [participant, sessionId]);
+
   function showBlockedWarning(tab) {
     if (!canAccessSplitFlow) {
       setWarning('Add receipt items before opening this section');
@@ -79,6 +133,19 @@ export default function BottomNav({ sessionId }) {
     }
     if (tab.reviewGate && hasUnassignedCash) {
       setWarning('Assign all cash before Final Review');
+    }
+  }
+
+  async function resolvePaymentRequest(status) {
+    if (!paymentRequest || !participant) return;
+
+    const current = paymentRequest;
+    setPaymentRequest(null);
+    try {
+      await api.updatePaymentRequest(sessionId, current.id, participant.id, status);
+      if (status === 'paid') setWarning('Payment marked as sent');
+    } catch {
+      setPaymentRequest(current);
     }
   }
 
@@ -118,6 +185,11 @@ export default function BottomNav({ sessionId }) {
         })}
       </nav>
       {warning && <ConfirmationToast message={warning} status="warning" />}
+      <PaymentRequestNotice
+        request={paymentRequest}
+        onPay={() => resolvePaymentRequest('paid')}
+        onDismiss={() => setPaymentRequest(null)}
+      />
     </>
   );
 }

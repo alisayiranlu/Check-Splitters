@@ -66,6 +66,22 @@ function buildReceiptSummaries(receipts, participants) {
   });
 }
 
+function getParticipantSummaries(sessionId, participants) {
+  return participants.map(participant => {
+    const splits = db.prepare(`
+      SELECT s.amount FROM splits s
+      JOIN items i ON s.item_id = i.id
+      JOIN receipts r ON i.receipt_id = r.id
+      WHERE r.session_id = ? AND s.participant_id = ?
+    `).all(sessionId, participant.id);
+
+    const total = splits.reduce((sum, split) => sum + split.amount, 0);
+    const itemCount = splits.length;
+
+    return { ...participant, total, itemCount };
+  });
+}
+
 // Create a new session
 router.post('/', (req, res) => {
   const { name, participantName } = req.body;
@@ -97,6 +113,7 @@ router.post('/', (req, res) => {
 router.get('/code/:code', (req, res) => {
   const session = db.prepare('SELECT * FROM sessions WHERE code = ?').get(req.params.code);
   if (!session) return res.status(404).json({ error: 'Session not found' });
+  if (session.ended_at) return res.status(410).json({ error: 'Session has ended' });
 
   const participants = db.prepare('SELECT * FROM participants WHERE session_id = ? ORDER BY created_at ASC').all(session.id);
   const receipts = getSessionReceipts(session.id);
@@ -122,6 +139,7 @@ router.post('/code/:code/join', (req, res) => {
 
   const session = db.prepare('SELECT * FROM sessions WHERE code = ?').get(req.params.code);
   if (!session) return res.status(404).json({ error: 'Session not found' });
+  if (session.ended_at) return res.status(410).json({ error: 'Session has ended' });
 
   const existing = db.prepare('SELECT * FROM participants WHERE session_id = ? AND name = ?').get(session.id, participantName);
   if (existing) return res.json({ sessionId: session.id, participantId: existing.id, code: session.code, name: session.name });
@@ -140,24 +158,12 @@ router.post('/code/:code/join', (req, res) => {
 router.get('/:id/review', (req, res) => {
   const session = db.prepare('SELECT * FROM sessions WHERE id = ?').get(req.params.id);
   if (!session) return res.status(404).json({ error: 'Session not found' });
+  if (session.ended_at) return res.status(410).json({ error: 'Session has ended' });
 
   const participants = db.prepare('SELECT * FROM participants WHERE session_id = ? ORDER BY created_at ASC').all(session.id);
   const receipts = getSessionReceipts(session.id);
   const receiptSummaries = buildReceiptSummaries(receipts, participants);
-
-  const summary = participants.map(p => {
-    const splits = db.prepare(`
-      SELECT s.amount FROM splits s
-      JOIN items i ON s.item_id = i.id
-      JOIN receipts r ON i.receipt_id = r.id
-      WHERE r.session_id = ? AND s.participant_id = ?
-    `).all(session.id, p.id);
-
-    const total = splits.reduce((sum, s) => sum + s.amount, 0);
-    const itemCount = splits.length;
-
-    return { ...p, total, itemCount };
-  });
+  const summary = getParticipantSummaries(session.id, participants);
 
   const grandTotal = summary.reduce((sum, p) => sum + p.total, 0);
 
@@ -165,6 +171,127 @@ router.get('/:id/review', (req, res) => {
   const hasUnassignedCash = receiptSummaries.some(receipt => receipt.unassignedTotal > 0);
 
   res.json({ session, participants: summary, receipts: receiptSummaries, grandTotal, hasReceiptItems, hasUnassignedCash });
+});
+
+router.post('/:id/payment-requests', (req, res) => {
+  const { participantId } = req.body;
+  if (!participantId) return res.status(400).json({ error: 'participantId is required' });
+
+  const session = db.prepare('SELECT * FROM sessions WHERE id = ?').get(req.params.id);
+  if (!session) return res.status(404).json({ error: 'Session not found' });
+  if (session.ended_at) return res.status(410).json({ error: 'Session has ended' });
+
+  const requester = db.prepare('SELECT * FROM participants WHERE id = ? AND session_id = ?').get(participantId, session.id);
+  if (!requester?.is_admin) return res.status(403).json({ error: 'Only admins can send payment requests' });
+
+  const participants = db.prepare('SELECT * FROM participants WHERE session_id = ? ORDER BY created_at ASC').all(session.id);
+  const receipts = getSessionReceipts(session.id);
+  const receiptSummaries = buildReceiptSummaries(receipts, participants);
+  const hasUnassignedCash = receiptSummaries.some(receipt => receipt.unassignedTotal > 0);
+  if (hasUnassignedCash) return res.status(400).json({ error: 'Assign all cash before sending payment requests' });
+
+  const summaries = getParticipantSummaries(session.id, participants);
+  const now = Date.now();
+  const insertRequest = db.prepare(`
+    INSERT INTO payment_requests (id, session_id, participant_id, amount, status, created_at, updated_at)
+    VALUES (?, ?, ?, ?, 'pending', ?, ?)
+  `);
+
+  db.prepare('DELETE FROM payment_requests WHERE session_id = ?').run(session.id);
+
+  const requests = summaries
+    .filter(participant => !participant.is_admin && participant.total > 0)
+    .map(participant => {
+      const request = {
+        id: uuidv4(),
+        session_id: session.id,
+        participant_id: participant.id,
+        amount: Number(participant.total.toFixed(2)),
+        status: 'pending',
+        created_at: now,
+        updated_at: now,
+      };
+      insertRequest.run(request.id, request.session_id, request.participant_id, request.amount, now, now);
+      return request;
+    });
+
+  res.json({ requests });
+});
+
+router.get('/:id/payment-requests', (req, res) => {
+  const { participantId } = req.query;
+  if (!participantId) return res.status(400).json({ error: 'participantId is required' });
+
+  const participant = db.prepare('SELECT * FROM participants WHERE id = ? AND session_id = ?').get(participantId, req.params.id);
+  if (!participant) return res.status(404).json({ error: 'Participant not found' });
+
+  const requests = participant.is_admin
+    ? db.prepare(`
+        SELECT pr.*, p.name AS participant_name, p.is_admin
+        FROM payment_requests pr
+        JOIN participants p ON pr.participant_id = p.id
+        WHERE pr.session_id = ?
+        ORDER BY pr.created_at DESC
+      `).all(req.params.id)
+    : db.prepare(`
+        SELECT pr.*, p.name AS participant_name, p.is_admin
+        FROM payment_requests pr
+        JOIN participants p ON pr.participant_id = p.id
+        WHERE pr.session_id = ? AND pr.participant_id = ?
+        ORDER BY pr.created_at DESC
+      `).all(req.params.id, participantId);
+
+  res.json({ requests });
+});
+
+router.get('/:id/payment-requests/:participantId', (req, res) => {
+  const participant = db.prepare('SELECT id FROM participants WHERE id = ? AND session_id = ?').get(req.params.participantId, req.params.id);
+  if (!participant) return res.status(404).json({ error: 'Participant not found' });
+
+  const requests = db.prepare(`
+    SELECT * FROM payment_requests
+    WHERE session_id = ? AND participant_id = ? AND status = 'pending'
+    ORDER BY created_at DESC
+  `).all(req.params.id, req.params.participantId);
+
+  res.json({ requests });
+});
+
+router.patch('/:id/payment-requests/:requestId', (req, res) => {
+  const { participantId, status } = req.body;
+  if (!participantId || !['paid', 'dismissed'].includes(status)) {
+    return res.status(400).json({ error: 'participantId and a valid status are required' });
+  }
+
+  const request = db.prepare(`
+    SELECT * FROM payment_requests
+    WHERE id = ? AND session_id = ? AND participant_id = ?
+  `).get(req.params.requestId, req.params.id, participantId);
+  if (!request) return res.status(404).json({ error: 'Payment request not found' });
+
+  db.prepare('UPDATE payment_requests SET status = ?, updated_at = ? WHERE id = ?').run(status, Date.now(), request.id);
+  res.json({ ...request, status });
+});
+
+router.post('/:id/end', (req, res) => {
+  const { participantId } = req.body;
+  if (!participantId) return res.status(400).json({ error: 'participantId is required' });
+
+  const session = db.prepare('SELECT * FROM sessions WHERE id = ?').get(req.params.id);
+  if (!session) return res.status(404).json({ error: 'Session not found' });
+
+  const participant = db.prepare('SELECT * FROM participants WHERE id = ? AND session_id = ?').get(participantId, session.id);
+  if (!participant?.is_admin) return res.status(403).json({ error: 'Only admins can end sessions' });
+
+  const pending = db.prepare(`
+    SELECT COUNT(*) AS count FROM payment_requests
+    WHERE session_id = ? AND status = 'pending'
+  `).get(session.id).count;
+  if (pending > 0) return res.status(400).json({ error: 'All payment requests must be paid before ending the session' });
+
+  const endedAt = session.ended_at || Date.now();
+  db.prepare('UPDATE sessions SET ended_at = ? WHERE id = ?').run(endedAt, session.id);
+  res.json({ ...session, ended_at: endedAt });
 });
 
 module.exports = router;

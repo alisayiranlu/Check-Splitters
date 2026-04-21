@@ -12,7 +12,8 @@ db.exec(`
     id TEXT PRIMARY KEY,
     code TEXT UNIQUE NOT NULL,
     name TEXT NOT NULL,
-    created_at INTEGER NOT NULL
+    created_at INTEGER NOT NULL,
+    ended_at INTEGER
   );
 
   CREATE TABLE IF NOT EXISTS participants (
@@ -64,6 +65,23 @@ db.exec(`
     FOREIGN KEY (session_id) REFERENCES sessions(id),
     FOREIGN KEY (participant_id) REFERENCES participants(id)
   );
+
+  CREATE TABLE IF NOT EXISTS payment_requests (
+    id TEXT PRIMARY KEY,
+    session_id TEXT NOT NULL,
+    participant_id TEXT NOT NULL,
+    amount REAL NOT NULL,
+    status TEXT NOT NULL DEFAULT 'pending',
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL,
+    FOREIGN KEY (session_id) REFERENCES sessions(id),
+    FOREIGN KEY (participant_id) REFERENCES participants(id)
+  );
 `);
+
+const sessionColumns = db.prepare('PRAGMA table_info(sessions)').all().map(column => column.name);
+if (!sessionColumns.includes('ended_at')) {
+  db.prepare('ALTER TABLE sessions ADD COLUMN ended_at INTEGER').run();
+}
 
 module.exports = db;

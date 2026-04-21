@@ -373,8 +373,65 @@ p {
   margin-top: 4px;
 }
 
+.payment-request-layer {
+  position: fixed;
+  top: 0;
+  left: 50%;
+  z-index: 96;
+  display: flex;
+  width: min(100vw, 402px);
+  height: 100dvh;
+  transform: translateX(-50%);
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.payment-request-scrim {
+  position: absolute;
+  inset: 0;
+  border: 0;
+  background: rgba(25, 28, 30, 0.58);
+  backdrop-filter: blur(10px);
+}
+
+.payment-request-panel {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  width: min(100%, 318px);
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+  border-radius: 28px;
+  background: rgba(247, 249, 251, 0.94);
+  color: var(--text);
+  padding: 34px 28px;
+  text-align: center;
+  box-shadow:
+    0 28px 48px rgba(25, 28, 30, 0.06),
+    inset 0 0 0 1px rgba(188, 201, 198, 0.15);
+  backdrop-filter: blur(28px);
+}
+
+.payment-request-icon {
+  display: inline-flex;
+  width: 64px;
+  height: 64px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: linear-gradient(145deg, var(--primary), var(--primary-container));
+  color: var(--surface-lowest);
+}
+
 @media (min-width: 520px) {
   .confirmation-modal-layer {
+    top: 28px;
+    height: min(860px, calc(100dvh - 56px));
+  }
+
+  .payment-request-layer {
     top: 28px;
     height: min(860px, calc(100dvh - 56px));
   }
