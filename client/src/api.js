@@ -27,8 +27,8 @@ export const api = {
   getReview: (sessionId) =>
     request('GET', `/sessions/${sessionId}/review`),
 
-  addReceipt: (sessionId, name, items, scannedAt) =>
-    request('POST', '/receipts', { sessionId, name, items, scannedAt }),
+  addReceipt: (sessionId, name, items, scannedAt, participantId) =>
+    request('POST', '/receipts', { sessionId, name, items, scannedAt, participantId }),
 
   getReceipt: (id) =>
     request('GET', `/receipts/${id}`),

@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useSession } from '../context/useSession';
 import { api } from '../api';
@@ -14,23 +15,37 @@ const MOCK_SCAN = {
 export default function AddReceipt() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { session } = useSession();
+  const { session, participant } = useSession();
+  const isAdmin = Boolean(participant?.is_admin);
+
+  useEffect(() => {
+    if (participant && !isAdmin) {
+      navigate(`/session/${id}/receipts`, { replace: true });
+    }
+  }, [id, isAdmin, navigate, participant]);
 
   async function handleUpload() {
+    if (!isAdmin) return;
+
     const receiptName = session?.name ? `Dinner at ${session.name}` : 'Scanned Receipt';
     const receipt = await api.addReceipt(
       id,
       receiptName,
       MOCK_SCAN.items,
-      new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+      new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+      participant.id
     );
     navigate(`/session/${id}/receipts/${receipt.id}/edit`);
   }
 
   async function handleManual() {
-    const receipt = await api.addReceipt(id, 'New Receipt', [], null);
+    if (!isAdmin) return;
+
+    const receipt = await api.addReceipt(id, 'New Receipt', [], null, participant.id);
     navigate(`/session/${id}/receipts/${receipt.id}/edit`);
   }
+
+  if (participant && !isAdmin) return null;
 
   return (
     <div className="modal-route">

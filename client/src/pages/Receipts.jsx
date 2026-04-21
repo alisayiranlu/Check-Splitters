@@ -7,8 +7,9 @@ import BottomNav from '../components/BottomNav';
 export default function Receipts() {
   const { id: sessionId } = useParams();
   const navigate = useNavigate();
-  const { session, refreshSession } = useSession();
+  const { session, participant, refreshSession } = useSession();
   const [receipts, setReceipts] = useState([]);
+  const isAdmin = Boolean(participant?.is_admin);
 
   useEffect(() => {
     refreshSession().then(s => {
@@ -32,12 +33,16 @@ export default function Receipts() {
           </svg>
         </button>
         <span className="topbar-title">Receipts</span>
-        <button className="icon-btn" onClick={() => navigate(`/session/${sessionId}/receipts/add`)} aria-label="Add receipt" style={{ color: 'var(--primary)' }}>
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-            <line x1="12" y1="5" x2="12" y2="19" />
-            <line x1="5" y1="12" x2="19" y2="12" />
-          </svg>
-        </button>
+        {isAdmin ? (
+          <button className="icon-btn" onClick={() => navigate(`/session/${sessionId}/receipts/add`)} aria-label="Add receipt" style={{ color: 'var(--primary)' }}>
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+              <line x1="12" y1="5" x2="12" y2="19" />
+              <line x1="5" y1="12" x2="19" y2="12" />
+            </svg>
+          </button>
+        ) : (
+          <div style={{ width: 36 }} />
+        )}
       </header>
 
       <main className="page-content">
@@ -50,10 +55,12 @@ export default function Receipts() {
         {receipts.length === 0 ? (
           <section className="empty-state">
             <h3>No receipts yet</h3>
-            <p>Add your first receipt to start splitting.</p>
-            <button className="btn" style={{ width: 'auto', background: '#fff', color: 'var(--primary)' }} onClick={() => navigate(`/session/${sessionId}/receipts/add`)}>
-              New Receipt
-            </button>
+            <p>{isAdmin ? 'Add your first receipt to start splitting.' : 'Waiting for an admin to add the first receipt.'}</p>
+            {isAdmin && (
+              <button className="btn" style={{ width: 'auto', background: '#fff', color: 'var(--primary)' }} onClick={() => navigate(`/session/${sessionId}/receipts/add`)}>
+                New Receipt
+              </button>
+            )}
           </section>
         ) : (
           <section className="list-stack">

@@ -61,6 +61,14 @@ export default function FinalReview() {
   const subtotal = review.participants.reduce((s, p) => s + p.total, 0);
   const service = typeof review.service === 'number' ? review.service : 0;
   const receipts = review.receipts ?? [];
+  const participantTotal = review.participants.find(p => p.id === participant?.id)?.total ?? 0;
+  const participantReceipts = receipts
+    .map(receipt => ({
+      id: receipt.id,
+      name: receipt.name,
+      total: receipt.participants?.find(p => p.id === participant?.id)?.total ?? 0,
+    }))
+    .filter(receipt => receipt.total > 0);
 
   return (
     <div className="page">
@@ -142,23 +150,41 @@ export default function FinalReview() {
           </div>
         </section>
 
-        <section className="card">
-          <h3 style={{ marginBottom: 18 }}>Ledger Totals</h3>
-          <div className="list-stack" style={{ gap: 12 }}>
-            <div className="total-line">
-              <span>Subtotal</span>
-              <span>${subtotal.toFixed(2)}</span>
+        {isAdmin ? (
+          <section className="card">
+            <h3 style={{ marginBottom: 18 }}>Ledger Totals</h3>
+            <div className="list-stack" style={{ gap: 12 }}>
+              <div className="total-line">
+                <span>Subtotal</span>
+                <span>${subtotal.toFixed(2)}</span>
+              </div>
+              <div className="total-line">
+                <span>Service and adjustments</span>
+                <span>${service.toFixed(2)}</span>
+              </div>
+              <div className="total-line strong">
+                <span>Grand Total</span>
+                <span>${review.grandTotal.toFixed(2)}</span>
+              </div>
             </div>
-            <div className="total-line">
-              <span>Service and adjustments</span>
-              <span>${service.toFixed(2)}</span>
+          </section>
+        ) : (
+          <section className="card">
+            <h3 style={{ marginBottom: 18 }}>Your Amount Owed</h3>
+            <div className="list-stack" style={{ gap: 12 }}>
+              {participantReceipts.map(receipt => (
+                <div className="total-line" key={receipt.id}>
+                  <span>{receipt.name}</span>
+                  <span>${receipt.total.toFixed(2)}</span>
+                </div>
+              ))}
+              <div className="total-line strong">
+                <span>You owe</span>
+                <span>${participantTotal.toFixed(2)}</span>
+              </div>
             </div>
-            <div className="total-line strong">
-              <span>Grand Total</span>
-              <span>${review.grandTotal.toFixed(2)}</span>
-            </div>
-          </div>
-        </section>
+          </section>
+        )}
 
         <section className="card tonal">
           <h3 style={{ marginBottom: 12 }}>Collection Method</h3>

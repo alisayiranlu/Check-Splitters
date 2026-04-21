@@ -6,11 +6,18 @@ const router = express.Router();
 
 // Add a receipt to a session
 router.post('/', (req, res) => {
-  const { sessionId, name, items, scannedAt } = req.body;
-  if (!sessionId || !name) return res.status(400).json({ error: 'sessionId and name are required' });
+  const { sessionId, name, items, scannedAt, participantId } = req.body;
+  if (!sessionId || !name || !participantId) {
+    return res.status(400).json({ error: 'sessionId, name, and participantId are required' });
+  }
 
   const session = db.prepare('SELECT id FROM sessions WHERE id = ?').get(sessionId);
   if (!session) return res.status(404).json({ error: 'Session not found' });
+
+  const participant = db.prepare('SELECT is_admin FROM participants WHERE id = ? AND session_id = ?').get(participantId, sessionId);
+  if (!participant?.is_admin) {
+    return res.status(403).json({ error: 'Only admins can add receipts' });
+  }
 
   const receiptId = uuidv4();
   const now = Date.now();
